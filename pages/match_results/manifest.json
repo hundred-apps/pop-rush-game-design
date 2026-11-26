@@ -1,0 +1,163 @@
+{
+  "assets": [
+    {
+      "file": "stage.webp",
+      "width": 841,
+      "height": 1870,
+      "mode": "RGB",
+      "source": {
+        "kind": "generated",
+        "tool": "Codex built-in ImageGen",
+        "reference": "User-provided Match Result gameplay reference",
+        "prompt": "Create a portrait 9:20 edge-to-edge mobile game RESULTS BACKGROUND only for Pop Rush, matching the supplied user-owned game reference. Vivid polished toy-game 3D style. At top: dark midnight navy and royal indigo stage backdrop, brilliant violet and blue spotlight beams, soft violet bloom from center at 29% of height, sparse colorful confetti and little star particles around left/right, warm highlights. Smooth transition at about 43% of height into a clean periwinkle-to-lavender blue gradient occupying lower 57%, with soft atmospheric violet glows near outer corners. This quiet lower area will have HTML ranking and buttons overlaid. Full character-free background with NO text, no letters, no numbers, no crown, no ribbon, no podium, no scorecard, no characters, no phone frame, no shapes resembling buttons or interface. Only atmospheric background art. Vertical canvas little texture in bottom half."
+      },
+      "normalization": "WebP encoding at quality 86"
+    },
+    {
+      "file": "ribbon.png",
+      "width": 960,
+      "height": 320,
+      "mode": "RGBA",
+      "source": {
+        "kind": "generated",
+        "tool": "Codex built-in ImageGen",
+        "reference": "User-provided Match Result gameplay reference",
+        "prompt": "Isolate and recreate the top PINK VICTORY RIBBON with golden crown from the provided Pop Rush vision as a standalone transparent UI sprite. Polished toy-like high gloss 3D game rendering, magenta rose broad label face, smooth upward-curving wide front band and folded fishtail ends, subtle violet depth, pink rim light, thick little golden cartoon crown with round finials centered above and lightly overlaps the ribbon. Match the proportions and framing of the reference, show banner front-on, absolutely blank broad center so HTML text can be positioned there, no text or lettering whatsoever. Do not include any background, beams, podium, numbers, characters, buttons, stars or confetti. Center the sprite in a landscape frame, graphic occupies 88% width, modest transparent margins, RGBA actual transparent background."
+      },
+      "normalization": "Scaled to 960 × 320 with Lanczos; alpha preserved"
+    },
+    {
+      "file": "podium.png",
+      "width": 960,
+      "height": 320,
+      "mode": "RGBA",
+      "source": {
+        "kind": "generated",
+        "tool": "Codex built-in ImageGen",
+        "reference": "User-provided Match Result gameplay reference",
+        "prompt": "Make a standalone transparent pixel asset of an EMPTY three-winner podium for the supplied Pop Rush match result. Front-on 3D mobile casual game art, two shorter round drums and a larger taller center round drum; left polished periwinkle silver second-place pedestal, middle brilliant warm golden first-place pedestal, right warm bronze/orange third-place pedestal slightly lower than the left. Arrangement proportions match the visible platforms below characters in the supplied picture. The bases align nearly on one baseline, front faces broad smooth metal, elliptical top faces with shallow viewing angle, dramatic crisp thick molded rims and light bloom confined to the material. Camera nearly straight-on, wide shallow combined shape, no platforms stacked. The left and right tops are visible and kept side by side to support independent character sprites added later. The podium is EMPTY with NO CHARACTERS, NO numbers or ranks or letters, NO crown, NO props, NO sparkle objects, NO banner, NO ground, and NO background. Actual transparent RGBA outside the asset. Landscape canvas, one composition, full silhouette, evenly padded."
+      },
+      "normalization": "Scaled to 960 × 320 with Lanczos; alpha preserved"
+    },
+    {
+      "file": "characters/luna.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "source": {
+        "kind": "generated",
+        "tool": "Codex built-in ImageGen",
+        "reference": "User-provided podium close-up",
+        "identityReference": "../gameplay/player_card/luna.png",
+        "output": "exec-b674680f-52d2-45d7-816a-9f133963298c.png",
+        "prompt": "Create ONE standalone game-art podium character sprite for Pop Rush. Reference 1 determines the match results design and the celebratory pose style; reference 2 is this character's existing identity. Subject: Luna, the fluffy white rabbit in the CENTER of reference 1. Two upright tall rabbit ears with pink inside, rounded snow white cheeks with rosy dots, closed joyful crescent eyes and an open cheerful laugh, a glossy royal-blue and lavender visor-style headphone band across the forehead with golden temples, little coordinated blue and white sporty uniform with tiny warm collar accents, two visible white forepaws forward. Crown is added by game's rank engine, so make all of the ears clearly visible and leave her head bare above her visor. Render this single character front-on, symmetric near head-on camera, straight vertical stance with a very big chibi head (roughly 72 to 75 percent of visible height), arms and short torso visibly extend downward to the flat waist baseline so it can sit naturally behind the top of a podium. Friendly polished 3D plush toy rendering, soft key light from upper left, rich family-friendly palette, clean closed silhouette, rounded cheeks, crisp cute facial expression, soft material definition. Frame centered and fully visible edge to edge with moderate transparent margins, with body at bottom center and no cropping through ears or paws. End the sprite just below the paws/waist, character body only. True alpha outside the sprite, square canvas. Output exactly one character only, with no stand, podium, crown, banner, object in hands, sparkles, glow, props, other animals, text, round frame, ground shadow, scene, or backdrop."
+      },
+      "normalization": {
+        "cropXYWH": [
+          97,
+          33,
+          1061,
+          1205
+        ],
+        "scaledSize": [
+          392,
+          445
+        ],
+        "padOffsetXY": [
+          60,
+          32
+        ]
+      }
+    },
+    {
+      "file": "characters/rex.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "source": {
+        "kind": "generated",
+        "tool": "Codex built-in ImageGen",
+        "reference": "User-provided podium close-up",
+        "identityReference": "../gameplay/player_card/rex.png",
+        "output": "exec-e5f48a61-9a05-475c-888d-b499f2af2f6e.png",
+        "prompt": "Create ONE standalone game-art podium character sprite for Pop Rush. Reference 1 determines the match results design and the celebratory pose style; reference 2 is this character's existing identity. Subject: Rex, the teddy bear on the LEFT of reference 1. Warm caramel toffee plush, round ears, dark bright dot eyes, light creamy broad muzzle with tiny black nose and gentle smile, a short soft tuft, wearing a midnight navy pilot jacket with warm gold zipper and two lapels like the first image. Reference 1's clean visible forehead and sweet face take precedence over the second image's goggles. Two clearly visible brown arms/paws slightly out from his sides. Render this single character front-on, symmetric near head-on camera, straight vertical stance with a very big chibi head (roughly 72 to 75 percent of visible height), arms and short torso visibly extend downward to the flat waist baseline so it can sit naturally behind the top of a podium. Friendly polished 3D plush toy rendering, soft key light from upper left, rich family-friendly palette, clean closed silhouette, rounded cheeks, crisp cute facial expression, soft material definition. Frame centered and fully visible edge to edge with moderate transparent margins, with body at bottom center and no cropping through ears or paws. End the sprite just below the paws/waist, character body only. True alpha outside the sprite, square canvas. Output exactly one character only, with no stand, podium, crown, banner, object in hands, sparkles, glow, props, other animals, text, round frame, ground shadow, scene, or backdrop."
+      },
+      "normalization": {
+        "cropXYWH": [
+          125,
+          78,
+          994,
+          1125
+        ],
+        "scaledSize": [
+          393,
+          445
+        ],
+        "padOffsetXY": [
+          59,
+          32
+        ]
+      }
+    },
+    {
+      "file": "characters/momo.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "source": {
+        "kind": "generated",
+        "tool": "Codex built-in ImageGen",
+        "reference": "User-provided podium close-up",
+        "identityReference": "../gameplay/player_card/momo.png",
+        "output": "exec-f39f7813-1da2-4921-8556-25d6cdf92f3b.png",
+        "prompt": "Create ONE standalone game-art podium character sprite for Pop Rush. Reference 1 determines the match results design and the celebratory pose style; reference 2 is this character's existing identity. Subject: Momo, the creamy peach cat on the RIGHT of reference 1. Cream fur with apricot subtle patches around face, two pointed soft ears with rosy interiors, bright black dot eyes and a happy tiny smile, pink cheek spots, pink satin bow on viewer's right ear, a lavender blue outfit with a baby-blue bowtie and small cream paws forward and out by her sides. Render this single character front-on, symmetric near head-on camera, straight vertical stance with a very big chibi head (roughly 72 to 75 percent of visible height), arms and short torso visibly extend downward to the flat waist baseline so it can sit naturally behind the top of a podium. Friendly polished 3D plush toy rendering, soft key light from upper left, rich family-friendly palette, clean closed silhouette, rounded cheeks, crisp cute facial expression, soft material definition. Frame centered and fully visible edge to edge with moderate transparent margins, with body at bottom center and no cropping through ears or paws. End the sprite just below the paws/waist, character body only. True alpha outside the sprite, square canvas. Output exactly one character only, with no stand, podium, crown, banner, object in hands, sparkles, glow, props, other animals, text, round frame, ground shadow, scene, or backdrop."
+      },
+      "normalization": {
+        "cropXYWH": [
+          82,
+          113,
+          1073,
+          1096
+        ],
+        "scaledSize": [
+          436,
+          445
+        ],
+        "padOffsetXY": [
+          38,
+          32
+        ]
+      }
+    },
+    {
+      "file": "characters/kiko.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "source": {
+        "kind": "generated",
+        "tool": "Codex built-in ImageGen",
+        "reference": "User-provided podium close-up",
+        "identityReference": "../gameplay/player_card/kiko.png",
+        "output": "exec-27579fc8-775c-4f76-b816-49b8010efda6.png",
+        "prompt": "Create ONE standalone game-art podium character sprite for Pop Rush. Reference 1 determines the match results design and the celebratory pose style; reference 2 is this character's existing identity. Subject: Kiko, the green frog shown in the SECOND input. Match his recognizable lime-green head, upward rounded protruding eyes, warm cream yellow lower muzzle, faint orange cheek blush and sweet happy smile. Add a tiny teal vest and blue neck scarf with a pale belly and two green hands slightly out by his sides, in the same celebratory podium costume and matte plush toy 3D style of the animals in reference 1. Render this single character front-on, symmetric near head-on camera, straight vertical stance with a very big chibi head (roughly 72 to 75 percent of visible height), arms and short torso visibly extend downward to the flat waist baseline so it can sit naturally behind the top of a podium. Friendly polished 3D plush toy rendering, soft key light from upper left, rich family-friendly palette, clean closed silhouette, rounded cheeks, crisp cute facial expression, soft material definition. Frame centered and fully visible edge to edge with moderate transparent margins, with body at bottom center and no cropping through ears or paws. End the sprite just below the paws/waist, character body only. True alpha outside the sprite, square canvas. Output exactly one character only, with no stand, podium, crown, banner, object in hands, sparkles, glow, props, other animals, text, round frame, ground shadow, scene, or backdrop."
+      },
+      "normalization": {
+        "cropXYWH": [
+          97,
+          99,
+          1050,
+          1119
+        ],
+        "scaledSize": [
+          418,
+          445
+        ],
+        "padOffsetXY": [
+          47,
+          32
+        ]
+      }
+    }
+  ]
+}

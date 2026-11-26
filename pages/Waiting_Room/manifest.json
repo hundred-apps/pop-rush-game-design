@@ -1,0 +1,95 @@
+{
+  "assets": [
+    {
+      "file": "player_card/luna.png",
+      "width": 494,
+      "height": 597,
+      "mode": "RGBA"
+    },
+    {
+      "file": "player_card/rex.png",
+      "width": 473,
+      "height": 507,
+      "mode": "RGBA"
+    },
+    {
+      "file": "player_card/momo.png",
+      "width": 490,
+      "height": 522,
+      "mode": "RGBA"
+    },
+    {
+      "file": "player_card/kiko.png",
+      "width": 477,
+      "height": 519,
+      "mode": "RGBA"
+    },
+    {
+      "file": "stage/classic_rush.png",
+      "width": 472,
+      "height": 452,
+      "mode": "RGBA"
+    },
+    {
+      "file": "stage/color_hunt.png",
+      "width": 471,
+      "height": 453,
+      "mode": "RGBA"
+    },
+    {
+      "file": "stage/memory_rush.png",
+      "width": 473,
+      "height": 452,
+      "mode": "RGBA"
+    },
+    {
+      "file": "stage/pink_stage.png",
+      "width": 471,
+      "height": 453,
+      "mode": "RGBA"
+    },
+    {
+      "file": "button/back.png",
+      "width": 229,
+      "height": 238,
+      "mode": "RGBA"
+    },
+    {
+      "file": "button/ranked_match.png",
+      "width": 855,
+      "height": 196,
+      "mode": "RGBA"
+    },
+    {
+      "file": "button/home.png",
+      "width": 232,
+      "height": 238,
+      "mode": "RGBA"
+    },
+    {
+      "file": "button/chat.png",
+      "width": 240,
+      "height": 241,
+      "mode": "RGBA"
+    },
+    {
+      "file": "button/ready.png",
+      "width": 904,
+      "height": 288,
+      "mode": "RGBA"
+    },
+    {
+      "file": "panel/stage_x4.png",
+      "width": 1354,
+      "height": 413,
+      "mode": "RGBA"
+    },
+    {
+      "file": "background/waiting_room.png",
+      "width": 941,
+      "height": 1672,
+      "mode": "RGB"
+    }
+  ],
+  "note": "Player cards contain fixed names, levels and ready marks. Stage panel contains fixed Stage x4 label. Pink stage name is provisional."
+}

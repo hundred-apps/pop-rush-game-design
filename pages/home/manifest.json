@@ -1,0 +1,170 @@
+[
+  {
+    "file": "background/home.png",
+    "width": 941,
+    "height": 1672,
+    "source": "background HD sebelumnya; ukuran asli"
+  },
+  {
+    "file": "character/luna_home.png",
+    "width": 1312,
+    "height": 1199,
+    "source": "Luna duduk memegang board; render sebelumnya"
+  },
+  {
+    "file": "icon/events.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "icon/rewards.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "icon/missions.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "icon/shop.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "navigation/home.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "navigation/character.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "navigation/board.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "navigation/inventory.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "hud/mail.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "hud/coin.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "hud/gem.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "hud/plus.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon baru, dipisah dari asset sheet"
+  },
+  {
+    "file": "hud/avatar_luna.png",
+    "width": 384,
+    "height": 384,
+    "source": "ikon karakter, digunakan kembali"
+  },
+  {
+    "file": "button/quick_match.png",
+    "width": 728,
+    "height": 208,
+    "source": "aset tombol HD sebelumnya, teks dan simbol menyatu"
+  },
+  {
+    "file": "button/private_room.png",
+    "width": 478,
+    "height": 169,
+    "source": "aset tombol HD sebelumnya, teks dan simbol menyatu"
+  },
+  {
+    "file": "button/ranking.png",
+    "width": 411,
+    "height": 168,
+    "source": "aset tombol HD sebelumnya, teks dan simbol menyatu"
+  },
+  {
+    "file": "branding/logo-hd.png",
+    "width": 1448,
+    "height": 1086,
+    "source": "PNG supplied by the user for Home branding"
+  },
+  {
+    "file": "branding/tagline-hd.png",
+    "width": 1448,
+    "height": 1086,
+    "source": "PNG supplied by the user for Home branding"
+  },
+  {
+    "file": "branding/logo.png",
+    "width": 295,
+    "height": 189,
+    "source": "logo versi baru dari preview; masking manual, resolusi asli"
+  },
+  {
+    "file": "branding/tagline.png",
+    "width": 305,
+    "height": 60,
+    "source": "tagline terpisah dari preview; masking manual"
+  },
+  {
+    "file": "hud/currency_panel.png",
+    "width": 500,
+    "height": 116,
+    "source": "panel kosong buatan baru; angka dinamis"
+  },
+  {
+    "file": "hud/level_panel.png",
+    "width": 500,
+    "height": 116,
+    "source": "panel kosong buatan baru"
+  },
+  {
+    "file": "navigation/bar.png",
+    "width": 1080,
+    "height": 210,
+    "source": "panel navigasi kosong buatan baru"
+  },
+  {
+    "file": "navigation/selected.png",
+    "width": 256,
+    "height": 220,
+    "source": "panel aktif kosong buatan baru"
+  },
+  {
+    "file": "icon/tile.png",
+    "width": 256,
+    "height": 200,
+    "source": "panel menu kosong buatan baru"
+  },
+  {
+    "file": "reference/original_home.png",
+    "width": 180,
+    "height": 354,
+    "source": "referensi asli pengguna"
+  }
+]

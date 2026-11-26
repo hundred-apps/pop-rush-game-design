@@ -1,0 +1,103 @@
+{
+  "assets": [
+    {
+      "file": "luna.png",
+      "source": "Codex built-in ImageGen",
+      "reference": "Approved Character mockup",
+      "prompt": "Extract and recreate only the central complete full-body cute Luna white bunny from the supplied Pop Rush character mockup as a clean standalone transparent mobile-game sprite. Preserve the exact joyful confident raised-paw pose, blue sports jacket with yellow accents, headset with golden ear cups and cyan visor, white paws, shoes/feet, pink ears, plush toy 3D style. Front three-quarter, same pose and proportions. No pedestal, ground shadow, clouds, other sprites, text, UI, or background. Entire silhouette, centered with a slight margin in a portrait RGBA canvas."
+    },
+    {
+      "file": "stage.webp",
+      "source": "Codex built-in ImageGen",
+      "reference": "Approved Character mockup",
+      "prompt": "Generate only the backdrop and raised lavender oval display stage from the supplied user-owned Pop Rush character selector mockup. Portrait 9:19, full bleed, clear saturated royal blue sky at top, blurred whimsical pastel castle towers and clouds at both sides behind hero, golden lavender center halo and empty circular lilac stage with bright soft rim centered at 52 percent image height, lower area clean smooth blue violet for HTML character cards. Empty stage, no animals, characters, text, buttons, crown, panels, badges, icons, borders. High quality playful glossy casual 3D mobile game environment, match reference colors and composition."
+    },
+    {
+      "file": "background.webp",
+      "source": "Codex built-in ImageGen",
+      "reference": "stage.webp",
+      "prompt": "Precise localized removal edit. Keep this portrait Pop Rush backdrop exactly the same in composition, crop, saturated blue sky, soft golden pink halo, pastel castle towers and violet floor. REMOVE only the glowing lavender oval podium and its attached shadow in the lower middle, replacing those pixels with a natural smooth continuation of the blue-violet floor already underneath. Keep no raised object anywhere, empty center beneath halo. No text, characters, new decoration, or overlays. Maintain the tall portrait aspect ratio, whole background edge-to-edge."
+    },
+    {
+      "file": "pedestal.png",
+      "source": "Codex built-in ImageGen",
+      "reference": "stage.webp",
+      "prompt": "Isolate and closely recreate ONLY the single round lavender display platform visible at the bottom-center of the provided Pop Rush artwork, as a wide transparent UI game sprite. Shallow circular plinth viewed from straight ahead at a slight downward angle, elliptical flat soft lavender top, pale lilac thin emissive upper rim, curved slightly tapered violet sides, lower bluish purple shadow confined to the physical base. Keep original pretty glossy toy-game colors and geometry. Platform empty. No character, background, floor, ambient glow outside the silhouette, text or props. Center base silhouette on true alpha, close generous horizontal padding, wide landscape canvas. Full ellipse and sides visible."
+    },
+    {
+      "file": "rex.png",
+      "width": 786,
+      "height": 860,
+      "mode": "RGBA",
+      "source": "Codex built-in ImageGen",
+      "reference": "Existing rex podium sprite and Luna full-body sprite",
+      "prompt": "Standalone FULL BODY selectable character game sprite for Pop Rush. Input one is the same character's upper-body identity reference, preserve face and markings. Input two is Luna full-body game art, use only her material, scale, chibi toy proportions and lighting reference. NEW character pose: Rex the caramel teddy bear pilot, goggles on forehead, cream muzzle and navy flight jacket with gold trim. Confident stance with legs apart, right paw saluting at his brow, left paw resting on his hip; both broad bear feet flat and visible. Sweet confident smile. Camera straight on or mild three-quarter, polished cute casual game CGI, soft plush and toy textures, clear colors, compact legs, feet readable at mobile size. Head to toes entirely in frame with even clear margin and both feet placed on one baseline. Transparent RGBA background, portrait proportions. No pedestal, floor, ground shadow, halo, scene, other character, border, icons, lettering, props or labels. Only one complete character.",
+      "normalization": {
+        "crop": [
+          159,
+          52,
+          830,
+          1211
+        ],
+        "scaled": [
+          545,
+          795
+        ],
+        "pad": [
+          120,
+          29
+        ]
+      }
+    },
+    {
+      "file": "momo.png",
+      "width": 786,
+      "height": 860,
+      "mode": "RGBA",
+      "source": "Codex built-in ImageGen",
+      "reference": "Existing momo podium sprite and Luna full-body sprite",
+      "prompt": "Standalone FULL BODY selectable character game sprite for Pop Rush. Input one is the same character's upper-body identity reference, preserve face and markings. Input two is Luna full-body game art, use only her material, scale, chibi toy proportions and lighting reference. NEW character pose: Momo the cream peach kitten with pink bow on viewer right ear, lavender blue dress or jacket, sky blue bowtie. Playful pose, one paw lifted in a gentle wave to the side and the other holds the edge of her outfit; two cream cat feet flat, one turned slightly outward. A little curved tail visible behind one side, cheerful smile. Camera straight on or mild three-quarter, polished cute casual game CGI, soft plush and toy textures, clear colors, compact legs, feet readable at mobile size. Head to toes entirely in frame with even clear margin and both feet placed on one baseline. Transparent RGBA background, portrait proportions. No pedestal, floor, ground shadow, halo, scene, other character, border, icons, lettering, props or labels. Only one complete character.",
+      "normalization": {
+        "crop": [
+          193,
+          54,
+          824,
+          1198
+        ],
+        "scaled": [
+          547,
+          795
+        ],
+        "pad": [
+          119,
+          29
+        ]
+      }
+    },
+    {
+      "file": "kiko.png",
+      "width": 786,
+      "height": 860,
+      "mode": "RGBA",
+      "source": "Codex built-in ImageGen",
+      "reference": "Existing kiko podium sprite and Luna full-body sprite",
+      "prompt": "Standalone FULL BODY selectable character game sprite for Pop Rush. Input one is the same character's upper-body identity reference, preserve face and markings. Input two is Luna full-body game art, use only her material, scale, chibi toy proportions and lighting reference. NEW character pose: Kiko the bright lime green frog with prominent glossy eyes, cream chin/belly, teal vest and blue scarf. Energetic pose with arms open low at both sides, elbows out, happily leaning slightly to one side in a low spring-ready stance, BOTH flat green webbed feet visible and planted on the same horizontal line. Broad happy smile. Camera straight on or mild three-quarter, polished cute casual game CGI, soft plush and toy textures, clear colors, compact legs, feet readable at mobile size. Head to toes entirely in frame with even clear margin and both feet placed on one baseline. Transparent RGBA background, portrait proportions. No pedestal, floor, ground shadow, halo, scene, other character, border, icons, lettering, props or labels. Only one complete character.",
+      "normalization": {
+        "crop": [
+          162,
+          66,
+          896,
+          1181
+        ],
+        "scaled": [
+          603,
+          795
+        ],
+        "pad": [
+          91,
+          29
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#342271" />
+    <title>Pop Rush</title>
+    <link rel="stylesheet" href="tailwind.css" />
+    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="gameplay.css?v=39" />
+    <script src="gameplay-rules.js?v=3" defer></script>
+    <script src="gameplay.js?v=20" defer></script>
+    <script src="multiplayer.js?v=5" defer></script>
+    <script src="app.js?v=19" defer></script>
+  </head>
+  <body>
+    <audio
+      id="game-backsound"
+      src="sounds/backsound-poprush.mp3"
+      preload="auto"
+      loop
+      hidden
+    ></audio>
+    <main
+      class="showcase mx-auto flex items-center justify-center"
+      data-view="home"
+    >
+      <section
+        class="screen screen--home isolate overflow-hidden"
+        id="home"
+        aria-labelledby="home-title"
+      >
+        <div class="screen-content">
+          <header>
+            <div
+              class="spot home-hud"
+              style="--x: 5; --y: 4; --w: 165; --h: 27"
+            >
+              <button
+                class="hud-badge profile"
+                type="button"
+                data-panel="profile"
+                aria-label="Luna, level 12"
+              >
+                <span class="profile-avatar">
+                  <img src="pages/home/hud/avatar_luna.png" alt="" />
+                  <span class="profile-stars" aria-hidden="true">★★★</span>
+                </span>
+                <span>Lv.12</span>
+              </button>
+              <button
+                class="hud-badge wallet"
+                type="button"
+                data-panel="coins"
+                aria-label="Coins, 24,580"
+              >
+                <img
+                  class="wallet-token"
+                  src="pages/home/hud/coin.png"
+                  alt=""
+                />
+                <span>24,580</span>
+                <img class="wallet-plus" src="pages/home/hud/plus.png" alt="" />
+              </button>
+              <button
+                class="hud-badge wallet"
+                type="button"
+                data-panel="gems"
+                aria-label="Gems, 980"
+              >
+                <img class="wallet-token" src="pages/home/hud/gem.png" alt="" />
+                <span>980</span>
+                <img class="wallet-plus" src="pages/home/hud/plus.png" alt="" />
+              </button>
+            </div>
+            <button
+              class="spot fullscreen-toggle"
+              style="--x: 5; --y: 35; --w: 22; --h: 22"
+              type="button"
+              data-fullscreen
+              aria-label="Enter full screen"
+            >
+              <span aria-hidden="true">⛶</span>
+            </button>
+            <button
+              class="spot art mail"
+              style="--x: 149; --y: 31; --w: 23; --h: 23"
+              type="button"
+              data-panel="mail"
+              aria-label="Mail, 1 unread message"
+            >
+              <img src="pages/home/hud/mail.png" alt="" />
+              <span class="mail-count" aria-hidden="true">1</span>
+            </button>
+          </header>
+
+          <h1
+            class="spot art home-brand-logo"
+            id="home-title"
+            tabindex="-1"
+            style="--x: 35; --y: 34; --w: 107; --h: 69"
+          >
+            <img src="pages/home/branding/logo-hd.png" alt="Pop Rush" />
+          </h1>
+          <div
+            class="spot art home-brand-tagline"
+            style="--x: 25; --y: 99; --w: 125; --h: 25"
+          >
+            <img
+              src="pages/home/branding/tagline-hd.png"
+              alt="Pop fast. Fight smart. Win the Rush!"
+            />
+          </div>
+          <img
+            class="spot art-img"
+            style="--x: 25; --y: 121; --w: 142; --h: 125"
+            src="pages/home/character/luna_home.png"
+            alt="Luna holding a bubble board"
+          />
+
+          <button
+            class="spot shortcut"
+            style="--x: 3; --y: 115; --w: 31; --h: 36"
+            type="button"
+            data-panel="events"
+          >
+            <img src="pages/home/icon/events.png" alt="" /><span>Events</span>
+          </button>
+          <button
+            class="spot shortcut"
+            style="--x: 3; --y: 151; --w: 31; --h: 36"
+            type="button"
+            data-panel="missions"
+          >
+            <img src="pages/home/icon/missions.png" alt="" /><span
+              >Missions</span
+            >
+          </button>
+          <button
+            class="spot shortcut"
+            style="--x: 3; --y: 187; --w: 31; --h: 36"
+            type="button"
+            data-panel="shop"
+          >
+            <img src="pages/home/icon/shop.png" alt="" /><span>Shop</span>
+          </button>
+          <button
+            class="spot shortcut"
+            style="--x: 138; --y: 118; --w: 33; --h: 36"
+            type="button"
+            data-panel="rewards"
+          >
+            <img src="pages/home/icon/rewards.png" alt="" /><span>Rewards</span>
+          </button>
+
+          <button
+            class="spot art match-action"
+            style="--x: 18; --y: 238; --w: 138; --h: 39"
+            type="button"
+            data-room="ranked"
+          >
+            <img src="pages/home/button/quick_match.png" alt="Quick Match" />
+          </button>
+          <button
+            class="spot art match-action"
+            style="--x: 11; --y: 280; --w: 77; --h: 26"
+            type="button"
+            data-room="private"
+          >
+            <img src="pages/home/button/private_room.png" alt="Private Room" />
+          </button>
+          <button
+            class="spot art match-action"
+            style="--x: 95; --y: 280; --w: 68; --h: 26"
+            type="button"
+            data-panel="ranking"
+          >
+            <img src="pages/home/button/ranking.png" alt="Ranking" />
+          </button>
+
+          <nav
+            class="spot bottom-nav grid grid-cols-4"
+            style="--x: 0; --w: 174; --h: 37"
+            aria-label="Main menu"
+          >
+            <button
+              class="nav-item"
+              type="button"
+              data-home
+              aria-current="page"
+            >
+              <img src="pages/home/navigation/home.png" alt="" /><span
+                >Home</span
+              >
+            </button>
+            <button class="nav-item" type="button" data-character-page>
+              <img src="pages/home/navigation/character.png" alt="" /><span
+                >Character</span
+              >
+            </button>
+            <button class="nav-item" type="button" data-board-page>
+              <img src="pages/home/navigation/board.png" alt="" /><span
+                >Board</span
+              >
+            </button>
+            <button class="nav-item" type="button" data-panel="inventory">
+              <img src="pages/home/navigation/inventory.png" alt="" /><span
+                >Inventory</span
+              >
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <section
+        class="screen screen--character overflow-hidden"
+        id="character"
+        aria-labelledby="character-title"
+      >
+        <div class="screen-content">
+          <header class="character-header">
+            <!-- <button
+              class="character-back"
+              type="button"
+              data-home
+              aria-label="Back to Home"
+            >
+              <img src="pages/Waiting_Room/button/back.png" alt="" />
+            </button> -->
+            <h2 id="character-title" tabindex="-1">Character</h2>
+          </header>
+          <div class="character-hero">
+            <img
+              class="character-pedestal"
+              src="pages/character/pedestal.png"
+              alt=""
+            />
+            <img
+              class="character-preview"
+              id="character-preview"
+              src="pages/character/luna.png"
+              alt="Luna"
+            />
+          </div>
+          <div
+            class="character-options"
+            id="character-options"
+            role="group"
+            aria-label="Choose a character"
+          ></div>
+          <button class="character-select" id="character-select" type="button">
+            Select
+          </button>
+          <p id="character-status" class="sr-only" role="status"></p>
+          <nav
+            class="spot bottom-nav grid grid-cols-4"
+            style="--x: 0; --w: 174; --h: 37"
+            aria-label="Main menu"
+          >
+            <button class="nav-item" type="button" data-home>
+              <img src="pages/home/navigation/home.png" alt="" /><span
+                >Home</span
+              >
+            </button>
+            <button
+              class="nav-item"
+              type="button"
+              data-character-page
+              aria-current="page"
+            >
+              <img src="pages/home/navigation/character.png" alt="" /><span
+                >Character</span
+              >
+            </button>
+            <button class="nav-item" type="button" data-board-page>
+              <img src="pages/home/navigation/board.png" alt="" /><span
+                >Board</span
+              >
+            </button>
+            <button class="nav-item" type="button" data-panel="inventory">
+              <img src="pages/home/navigation/inventory.png" alt="" /><span
+                >Inventory</span
+              >
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <section
+        class="screen screen--board overflow-hidden"
+        id="board"
+        aria-labelledby="board-title"
+      >
+        <div class="screen-content">
+          <header class="board-header">
+            <button
+              class="character-back"
+              type="button"
+              data-home
+              aria-label="Back to Home"
+            >
+              <img src="pages/Waiting_Room/button/back.png" alt="" />
+            </button>
+            <h2 id="board-title" tabindex="-1">Board</h2>
+          </header>
+          <div class="board-label" aria-live="polite">
+            <span id="board-name">Sapphire Blue</span>
+            <span id="board-size">4 × 4</span>
+          </div>
+          <div class="board-preview">
+            <div
+              class="board-color-hunt gameplay-board"
+              role="img"
+              aria-label="Sapphire Blue board, 4 by 4"
+            >
+              <div
+                class="gameplay-bubbles"
+                id="board-bubbles"
+                aria-hidden="true"
+              ></div>
+            </div>
+          </div>
+          <div
+            class="board-options"
+            id="board-options"
+            role="group"
+            aria-label="Choose a board"
+          ></div>
+          <button
+            class="character-select board-use"
+            id="board-use"
+            type="button"
+          >
+            Use Board
+          </button>
+          <nav
+            class="spot bottom-nav grid grid-cols-4"
+            style="--x: 0; --w: 174; --h: 37"
+            aria-label="Main menu"
+          >
+            <button class="nav-item" type="button" data-home>
+              <img src="pages/home/navigation/home.png" alt="" /><span
+                >Home</span
+              >
+            </button>
+            <button class="nav-item" type="button" data-character-page>
+              <img src="pages/home/navigation/character.png" alt="" /><span
+                >Character</span
+              >
+            </button>
+            <button
+              class="nav-item"
+              type="button"
+              data-board-page
+              aria-current="page"
+            >
+              <img src="pages/home/navigation/board.png" alt="" /><span
+                >Board</span
+              >
+            </button>
+            <button class="nav-item" type="button" data-panel="inventory">
+              <img src="pages/home/navigation/inventory.png" alt="" /><span
+                >Inventory</span
+              >
+            </button>
+          </nav>
+        </div>
+      </section>
+
+      <section
+        class="screen screen--room isolate overflow-hidden"
+        id="room"
+        aria-labelledby="room-title"
+      >
+        <div class="screen-content">
+          <header>
+            <button
+              class="spot art"
+              style="--x: 10; --y: 7; --w: 23; --h: 24"
+              type="button"
+              data-home
+              aria-label="Back to Home"
+            >
+              <img src="pages/Waiting_Room/button/back.png" alt="" />
+            </button>
+            <h2
+              class="spot room-title grid place-items-center text-center"
+              id="room-title"
+              tabindex="-1"
+              style="--x: 28; --y: 5; --w: 104; --h: 27"
+            >
+              Multiplayer Room
+            </h2>
+            <!-- <button
+              class="spot art"
+              style="--x: 135; --y: 6; --w: 23; --h: 24"
+              type="button"
+              data-home
+              aria-label="Go to Home"
+            >
+              <img src="pages/Waiting_Room/button/home.png" alt="" />
+            </button> -->
+            <div
+              class="spot art mode-badge"
+              style="--x: 27; --y: 38; --w: 106; --h: 22"
+            >
+              <span id="quick-badge" class="grid h-full place-items-center"
+                >Vs Bots</span
+              >
+              <span
+                id="private-badge"
+                class="grid h-full place-items-center"
+                hidden
+                >Private Room</span
+              >
+            </div>
+            <button
+              class="spot fullscreen-toggle"
+              style="--x: 135; --y: 38; --w: 22; --h: 22"
+              type="button"
+              data-fullscreen
+              aria-label="Enter full screen"
+            >
+              <span aria-hidden="true">⛶</span>
+            </button>
+          </header>
+
+          <ul aria-label="Players">
+            <li
+              class="spot player"
+              style="--x: 19; --y: 80; --w: 61; --h: 60"
+            ></li>
+            <li
+              class="spot player"
+              style="--x: 85; --y: 80; --w: 62; --h: 60"
+            ></li>
+            <li
+              class="spot player"
+              style="--x: 18; --y: 144; --w: 64; --h: 60"
+            ></li>
+            <li
+              class="spot player"
+              style="--x: 85; --y: 143; --w: 63; --h: 60"
+            ></li>
+          </ul>
+
+          <p
+            class="spot online-room-status"
+            id="online-room-status"
+            role="status"
+            style="--x: 9; --y: 205; --w: 142; --h: 18"
+            hidden
+          ></p>
+          <section
+            class="spot stage-panel"
+            style="--x: 8; --y: 226; --w: 144; --h: 52"
+            aria-label="Stage x4"
+          >
+            <div class="stage-list room-board">
+              <span class="room-board-color" aria-hidden="true"></span>
+              <span id="room-board-name">Sapphire Blue</span>
+            </div>
+          </section>
+
+          <button
+            class="spot online-room-action"
+            id="room-invite"
+            type="button"
+            style="--x: 31; --y: 280; --w: 98; --h: 19"
+            hidden
+          >
+            Room code
+          </button>
+          <button
+            class="spot art"
+            style="--x: 7; --y: 309; --w: 23; --h: 24"
+            type="button"
+            data-panel="chat"
+          >
+            <img src="pages/Waiting_Room/button/chat.png" alt="Room chat" />
+          </button>
+          <button
+            class="spot art ready-button"
+            style="--x: 37; --y: 302; --w: 90; --h: 34"
+            type="button"
+            aria-label="Ready"
+            aria-pressed="false"
+            disabled
+          >
+            <img src="pages/Waiting_Room/button/ready.png" alt="" />
+          </button>
+          <button
+            class="spot play-match"
+            style="--x: 129; --y: 307; --w: 28; --h: 24"
+            type="button"
+            id="play-match"
+            aria-label="Play match"
+            disabled
+          >
+            Play
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="screen screen--gameplay isolate overflow-hidden"
+        id="gameplay"
+        aria-labelledby="gameplay-title"
+      >
+        <div class="screen-content">
+          <header>
+            <div
+              class="spot gameplay-stage"
+              style="--x: 3; --y: 2; --w: 78; --h: 26"
+            >
+              <h2 id="gameplay-title" tabindex="-1">Stage 1/4</h2>
+              <p id="gameplay-board-name">Sapphire Blue</p>
+            </div>
+            <a
+              class="spot art gameplay-back"
+              id="gameplay-back"
+              href="#room"
+              aria-label="Back to Waiting Room"
+              style="--x: 87; --y: 2; --w: 19; --h: 21"
+            >
+              <img src="pages/Waiting_Room/button/back.png" alt="" />
+            </a>
+            <div
+              class="spot gameplay-timer"
+              style="--x: 111; --y: 0; --w: 64; --h: 25"
+            >
+              <span class="gameplay-stopwatch" aria-hidden="true"></span>
+              <span id="gameplay-time" role="timer" aria-label="Time remaining"
+                >00:45.0</span
+              >
+            </div>
+          </header>
+
+          <ol
+            class="spot gameplay-scores grid grid-cols-4"
+            id="gameplay-scores"
+            style="--x: 1; --y: 35; --w: 176; --h: 46"
+            aria-label="Player scores"
+          ></ol>
+          <template id="gameplay-player-card">
+            <li class="gameplay-score">
+              <span class="gameplay-rank">
+                <span class="gameplay-rank-label"></span>
+                <span class="gameplay-crown" aria-hidden="true" hidden></span>
+              </span>
+              <img
+                class="gameplay-portrait"
+                alt=""
+                loading="lazy"
+                decoding="async"
+                width="1254"
+                height="1254"
+              />
+              <span class="gameplay-name"></span>
+              <span class="gameplay-level sr-only"></span>
+              <strong class="gameplay-score-percent"></strong>
+            </li>
+          </template>
+
+          <div
+            class="spot gameplay-prompt"
+            style="--x: 26; --y: 88; --w: 127; --h: 24"
+          >
+            <p class="gameplay-rule" id="gameplay-rule">
+              <span class="gameplay-rule-bubble" aria-hidden="true"></span>
+              <span>Pop only <strong>GREEN!</strong></span>
+            </p>
+            <p
+              class="gameplay-rule gameplay-penalty"
+              id="gameplay-penalty"
+              aria-hidden="true"
+              hidden
+            >
+              Wrong pop · Board locked
+            </p>
+            <p
+              class="gameplay-rule"
+              id="gameplay-online-status"
+              role="status"
+              hidden
+            ></p>
+            <div
+              class="gameplay-rush-actions"
+              id="gameplay-rush-actions"
+              hidden
+            >
+              <p
+                class="gameplay-rule gameplay-rush-status"
+                id="gameplay-rush-status"
+              >
+                <span>Tap <strong>Pop Rush!</strong></span>
+                <small id="gameplay-shake-hint" hidden>or shake</small>
+              </p>
+              <button
+                class="gameplay-enable-shake"
+                id="gameplay-enable-shake"
+                type="button"
+                hidden
+              >
+                Enable shake
+              </button>
+            </div>
+          </div>
+          <p id="gameplay-board-status" class="sr-only" role="status"></p>
+
+          <div
+            class="spot gameplay-board"
+            style="--x: 1; --y: 115; --w: 176; --h: 176"
+          >
+            <div
+              class="gameplay-bubbles grid"
+              id="gameplay-bubbles"
+              role="group"
+              aria-label="4 by 4 bubble board"
+            ></div>
+          </div>
+
+          <footer
+            class="spot gameplay-controls"
+            style="--x: 0; --y: 286; --w: 178; --h: 77"
+          >
+            <div class="gameplay-power">
+              <span
+                class="ability-icon ability-icon--dash"
+                aria-hidden="true"
+              ></span>
+              <div class="gameplay-power-label">
+                <span>Pop Power</span
+                ><strong id="gameplay-power-value">0%</strong>
+              </div>
+              <div
+                class="gameplay-power-track"
+                id="gameplay-power-track"
+                role="meter"
+                aria-label="Pop power"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <span style="--power: 0%"></span>
+              </div>
+            </div>
+
+            <div class="gameplay-dock">
+              <ul
+                class="gameplay-abilities grid grid-cols-4"
+                aria-label="Power-ups"
+              >
+                <li class="gameplay-ability gameplay-ability--blast">
+                  <img
+                    src="pages/gameplay/dock/skill-blast.png"
+                    alt=""
+                    width="256"
+                    height="256"
+                  />
+                  <span class="sr-only">Blast</span>
+                </li>
+                <li class="gameplay-ability gameplay-ability--shield">
+                  <img
+                    src="pages/gameplay/dock/skill-shield.png"
+                    alt=""
+                    width="256"
+                    height="256"
+                  />
+                  <span class="sr-only">Shield</span>
+                </li>
+                <li class="gameplay-ability gameplay-ability--dash">
+                  <img
+                    src="pages/gameplay/dock/skill-rush.png"
+                    alt=""
+                    width="256"
+                    height="256"
+                  />
+                  <span class="sr-only">Rush</span>
+                </li>
+                <li class="gameplay-ability gameplay-ability--ice">
+                  <img
+                    src="pages/gameplay/dock/skill-freeze.png"
+                    alt=""
+                    width="256"
+                    height="256"
+                  />
+                  <span class="sr-only">Freeze</span>
+                </li>
+              </ul>
+              <div class="gameplay-rush-slot" data-ready="false">
+                <button
+                  class="gameplay-pop-rush"
+                  id="gameplay-pop-rush"
+                  type="button"
+                  data-mode="rush"
+                  disabled
+                >
+                  <img
+                    class="gameplay-pop-rush-art"
+                    src="pages/gameplay/dock/btn-pop-rush.png"
+                    alt=""
+                    width="10"
+                    height="10"
+                  />
+                  <span id="gameplay-rush-label" class="sr-only">Pop Rush</span>
+                </button>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </section>
+    </main>
+
+    <dialog
+      class="game-dialog"
+      id="private-room-dialog"
+      aria-labelledby="private-room-title"
+    >
+      <div class="flex items-center justify-between gap-4">
+        <h2 class="text-xl font-bold" id="private-room-title">Private Room</h2>
+        <form method="dialog">
+          <button
+            class="close-dialog grid place-items-center"
+            type="submit"
+            aria-label="Close"
+            autofocus
+          >
+            ×
+          </button>
+        </form>
+      </div>
+      <button class="send-message mt-4" id="create-private-room" type="button">
+        Create Room
+      </button>
+      <form class="mt-4" id="join-private-room">
+        <label class="text-sm" for="private-room-code">Room code</label>
+        <input
+          class="room-code-input"
+          id="private-room-code"
+          type="text"
+          placeholder="A1B2C3"
+          maxlength="16"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          required
+        />
+        <button class="send-message mt-4" id="join-with-code" type="submit">
+          Join Room
+        </button>
+      </form>
+      <p class="mt-4 text-sm" id="private-room-feedback" role="status"></p>
+    </dialog>
+
+    <dialog
+      class="game-dialog"
+      id="room-invite-dialog"
+      aria-labelledby="room-invite-title"
+    >
+      <h2 class="text-xl font-bold" id="room-invite-title">Room code</h2>
+      <p class="mt-4 text-sm">
+        On the other device, choose Private Room and enter this code.
+      </p>
+      <input
+        class="room-code-input mt-4"
+        id="room-invite-code"
+        aria-label="Invite code"
+        readonly
+      />
+      <div class="gameplay-results-actions mt-4">
+        <button class="send-message" id="copy-room-invite" type="button">
+          Copy code
+        </button>
+        <form method="dialog">
+          <button class="send-message" type="submit">Close</button>
+        </form>
+      </div>
+      <p class="mt-4 text-sm" id="room-invite-feedback" role="status"></p>
+    </dialog>
+
+    <dialog
+      class="match-results"
+      id="gameplay-results"
+      aria-labelledby="gameplay-results-title"
+      aria-describedby="gameplay-results-summary"
+    >
+      <div class="results-sheet">
+        <header class="results-banner">
+          <h2 id="gameplay-results-title">Match Result</h2>
+        </header>
+        <p class="sr-only" id="gameplay-results-summary"></p>
+        <div
+          class="results-podium"
+          id="gameplay-results-podium"
+          aria-hidden="true"
+        ></div>
+        <ol
+          class="gameplay-results-list"
+          id="gameplay-results-order"
+          aria-label="Final standings"
+        ></ol>
+        <ul class="results-stats" aria-label="Your match statistics">
+          <li>
+            <img src="pages/home/hud/coin.png" alt="" />
+            <div><strong id="results-pops"></strong><span>Pops</span></div>
+          </li>
+          <li>
+            <img src="pages/home/hud/gem.png" alt="" />
+            <div>
+              <strong id="results-progress"></strong><span>Progress</span>
+            </div>
+          </li>
+          <li>
+            <span class="results-rank-symbol" aria-hidden="true">#</span>
+            <div><strong id="results-rank"></strong><span>Rank</span></div>
+          </li>
+        </ul>
+        <div class="results-buttons">
+          <button
+            class="results-button results-button--play"
+            id="gameplay-play-again"
+            type="button"
+            autofocus
+          >
+            <span aria-hidden="true">↻</span> Play Again
+          </button>
+          <a
+            class="results-button results-button--home"
+            id="gameplay-results-back"
+            href="#home"
+          >
+            <img src="pages/Waiting_Room/button/home.png" alt="" /> Back to Home
+          </a>
+        </div>
+      </div>
+    </dialog>
+    <template id="results-place-template">
+      <div class="results-place">
+        <img alt="" width="512" height="512" />
+        <span class="gameplay-crown results-winner-crown"></span>
+        <span class="results-place-number"></span>
+      </div>
+    </template>
+    <template id="results-row-template">
+      <li class="gameplay-result-row">
+        <span class="results-row-rank" aria-hidden="true"></span>
+        <img alt="" />
+        <span class="results-player-name"></span>
+        <span class="results-player-score"
+          ><span aria-hidden="true">♛</span><strong></strong
+        ></span>
+      </li>
+    </template>
+
+    <dialog class="game-dialog" id="game-dialog" aria-labelledby="dialog-title">
+      <div class="flex items-start justify-between gap-4">
+        <h2 class="text-xl font-bold" id="dialog-title"></h2>
+        <form method="dialog">
+          <button
+            class="close-dialog grid place-items-center"
+            aria-label="Close"
+            autofocus
+          >
+            ×
+          </button>
+        </form>
+      </div>
+      <div id="dialog-content" class="mt-4 text-sm leading-relaxed"></div>
+      <section
+        id="chat-content"
+        class="mt-4"
+        hidden
+        aria-label="Local room chat"
+      >
+        <ul
+          class="chat-log mb-4 space-y-2 text-sm"
+          aria-label="Messages"
+          aria-live="polite"
+        ></ul>
+        <form id="chat-form" class="flex gap-2">
+          <label class="sr-only" for="chat-input">Message</label>
+          <input
+            class="min-w-0 flex-1"
+            id="chat-input"
+            name="message"
+            maxlength="180"
+            placeholder="Write a message"
+            autocomplete="off"
+            required
+          />
+          <button class="send-message" type="submit">Send</button>
+        </form>
+      </section>
+    </dialog>
+  </body>
+</html>
