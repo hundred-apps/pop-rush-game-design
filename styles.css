@@ -460,3 +460,39 @@ button:focus-visible {
     transition: none;
   }
 }
+
+/* Equipped 3D Backgrounds from Pop Shop */
+:root[data-game-bg="royal_arena"] .screen--home,
+:root[data-game-bg="royal_arena"] .screen--gameplay {
+  background-image:
+    linear-gradient(180deg, #101234a8, transparent 35%, transparent 66%, #18144ad4 100%),
+    url("./pages/Waiting_Room/background/waiting_room.png");
+}
+
+:root[data-game-bg="sunshine_castle"] .screen--home,
+:root[data-game-bg="sunshine_castle"] .screen--gameplay {
+  background-image:
+    linear-gradient(180deg, #12369c40, transparent 35%, transparent 66%, #3f4ac2c4 100%),
+    url("./pages/character/stage.webp");
+}
+
+:root[data-game-bg="starlight_party"] .screen--home,
+:root[data-game-bg="starlight_party"] .screen--gameplay {
+  background-image:
+    linear-gradient(180deg, #0b103888, transparent 36%, transparent 66%, #1a185ed0 100%),
+    url("./pages/match_results/stage.webp");
+}
+
+:root[data-game-bg="cotton_sunset"] .screen--home,
+:root[data-game-bg="cotton_sunset"] .screen--gameplay {
+  background-image:
+    linear-gradient(180deg, #681c6438, transparent 35%, transparent 66%, #5a227ec4 100%),
+    url("./pages/shop/bg-cotton-sunset.png");
+}
+
+:root[data-game-bg="aurora_kingdom"] .screen--home,
+:root[data-game-bg="aurora_kingdom"] .screen--gameplay {
+  background-image:
+    linear-gradient(180deg, #072b4860, transparent 35%, transparent 66%, #161858d4 100%),
+    url("./pages/shop/bg-aurora-kingdom.png");
+}

@@ -1,63 +1,9 @@
 {
   "assets": [
     {
-      "file": "player_card/luna.png",
-      "width": 494,
-      "height": 597,
-      "mode": "RGBA"
-    },
-    {
-      "file": "player_card/rex.png",
-      "width": 473,
-      "height": 507,
-      "mode": "RGBA"
-    },
-    {
-      "file": "player_card/momo.png",
-      "width": 490,
-      "height": 522,
-      "mode": "RGBA"
-    },
-    {
-      "file": "player_card/kiko.png",
-      "width": 477,
-      "height": 519,
-      "mode": "RGBA"
-    },
-    {
-      "file": "stage/classic_rush.png",
-      "width": 472,
-      "height": 452,
-      "mode": "RGBA"
-    },
-    {
-      "file": "stage/color_hunt.png",
-      "width": 471,
-      "height": 453,
-      "mode": "RGBA"
-    },
-    {
-      "file": "stage/memory_rush.png",
-      "width": 473,
-      "height": 452,
-      "mode": "RGBA"
-    },
-    {
-      "file": "stage/pink_stage.png",
-      "width": 471,
-      "height": 453,
-      "mode": "RGBA"
-    },
-    {
       "file": "button/back.png",
       "width": 229,
       "height": 238,
-      "mode": "RGBA"
-    },
-    {
-      "file": "button/ranked_match.png",
-      "width": 855,
-      "height": 196,
       "mode": "RGBA"
     },
     {

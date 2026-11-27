@@ -1,31 +1,6 @@
 {
   "assets": [
     {
-      "file": "ability-icons.png",
-      "width": 1254,
-      "height": 1254,
-      "mode": "RGBA",
-      "layout": [["Dash", "Shield"], ["Blast", "Ice Trap"]],
-      "source": {
-        "kind": "generated",
-        "tool": "Codex built-in ImageGen",
-        "prompt": "Create ONE production sprite sheet of four separate isolated glossy 3D toy ability icons for the original Pop Rush bubble-board browser game. Transparent RGBA background. Square image, strict 2 by 2 grid, one centered symbol in each equal quadrant with roomy transparent gaps and outer margins. No words or letters, no numerals, no interface cards or tile backgrounds, no hands, no fingers, no scenery. Top left: a single chunky shiny golden yellow lightning bolt, leaning forward, white highlight at left and warm orange shading on right. Top right: rounded blue kite shield with cyan center, bright white blue metallic bevel, upright frontal shape. Bottom left: hot pink and coral starburst explosion, coral outer spikes and bright ivory-peach interior, exactly one starburst silhouette. Bottom right: six-point icy pale blue snowflake with chunky forked tips and a luminous white-blue bevel. Aim for the same two-tone pastel gloss and chunky mobile-game icon silhouettes as the reference, legible at 32 pixels. Keep each symbol centered at 25% or 75% in both axes, and about 31–34% of full canvas height. Keep any soft glows contained within each quadrant, and preserve true transparency all the way around each symbol."
-      }
-    },
-    {
-      "file": "board.png",
-      "width": 1254,
-      "height": 1254,
-      "mode": "RGBA",
-      "layout": { "rows": 4, "columns": 4 },
-      "source": {
-        "kind": "generated-edit",
-        "tool": "Codex built-in ImageGen",
-        "input": "../../component_board/ChatGPT Image Nov 25, 2026, 09_54_07 AM-1.png",
-        "prompt": "Edit this exact Pop Rush empty bunny bubble-board game sprite. Remove the three pale lavender square buttons on the left side and the two small blue indicator dots directly above them. Seamlessly replace their footprints and their shadows with the same smooth glossy blue plastic as the surrounding frame. Horizontally center the complete turquoise play grid and its cyan bezel beneath the bunny's face, shifting the section about 4% of the total canvas width to the left. Preserve the regular grid geometry with precisely four columns and four rows of identical round concave pale-lavender wells, sixteen in total. Keep all wells empty, with even horizontal and vertical spacing and straight rows; preserve the grid's scale and vertical alignment as closely as possible. Retain the bunny face and ears, the glossy cyan-blue plastic outer silhouette, blue-purple rim light, and both golden sparkle decorations. Keep the same square straight-on front view and framing. Deliver one clean production PNG sprite with true transparent alpha around the board silhouette. No left-side controls or replacement symbols, no hands, no text, no stage HUD, and no extra objects."
-      }
-    },
-    {
       "file": "player_card/luna.png",
       "width": 1254,
       "height": 1254,
@@ -33,7 +8,7 @@
       "source": {
         "kind": "generated-edit",
         "tool": "Codex built-in ImageGen",
-        "input": "../Waiting_Room/player_card/luna.png",
+        "archivedInput": "../Waiting_Room/player_card/luna.png",
         "prompt": "Isolate the existing portrait of Luna the white bunny, retaining her long pink-lined ears, glossy blue visor and purple-yellow headphones from the provided Pop Rush player card. Preserve this character's identity and the original round glossy 3D toy rendering, centered straight-on expression and soft upper-left lighting. Output a single head-and-visible-shoulders or head-and-visible-paws portrait for a tiny Gameplay scoreboard. Keep the complete silhouette including both ears, goggles or eyes, with a small even transparent margin. Make the character fill about 84–87% of a square canvas, preserving natural proportions. Remove the entire purple or gold card, surrounding background, all text, level, crown, border glow and green check mark. Reconstruct any tiny silhouette areas previously obscured by the card cleanly. True transparent RGBA background. No new objects, graphical frame, text, watermark, ground, or UI."
       }
     },
@@ -45,7 +20,7 @@
       "source": {
         "kind": "generated-edit",
         "tool": "Codex built-in ImageGen",
-        "input": "../Waiting_Room/player_card/rex.png",
+        "archivedInput": "../Waiting_Room/player_card/rex.png",
         "prompt": "Isolate the existing portrait of Rex the orange-brown bear, retaining his round ears, honey-gold aviator goggles, cream snout and visible blue collar from the provided Pop Rush player card. Preserve this character's identity and the original round glossy 3D toy rendering, centered straight-on expression and soft upper-left lighting. Output a single head-and-visible-shoulders or head-and-visible-paws portrait for a tiny Gameplay scoreboard. Keep the complete silhouette including both ears, goggles or eyes, with a small even transparent margin. Make the character fill about 84–87% of a square canvas, preserving natural proportions. Remove the entire purple or gold card, surrounding background, all text, level, crown, border glow and green check mark. Reconstruct any tiny silhouette areas previously obscured by the card cleanly. True transparent RGBA background. No new objects, graphical frame, text, watermark, ground, or UI."
       }
     },
@@ -57,7 +32,7 @@
       "source": {
         "kind": "generated-edit",
         "tool": "Codex built-in ImageGen",
-        "input": "../Waiting_Room/player_card/momo.png",
+        "archivedInput": "../Waiting_Room/player_card/momo.png",
         "prompt": "Isolate the existing portrait of Momo the cream kitten, retaining her pointed pink ears, pink bow, pink cheek marks and little paws from the provided Pop Rush player card. Preserve this character's identity and the original round glossy 3D toy rendering, centered straight-on expression and soft upper-left lighting. Output a single head-and-visible-shoulders or head-and-visible-paws portrait for a tiny Gameplay scoreboard. Keep the complete silhouette including both ears, goggles or eyes, with a small even transparent margin. Make the character fill about 84–87% of a square canvas, preserving natural proportions. Remove the entire purple or gold card, surrounding background, all text, level, crown, border glow and green check mark. Reconstruct any tiny silhouette areas previously obscured by the card cleanly. True transparent RGBA background. No new objects, graphical frame, text, watermark, ground, or UI."
       }
     },
@@ -69,24 +44,8 @@
       "source": {
         "kind": "generated-edit",
         "tool": "Codex built-in ImageGen",
-        "input": "../Waiting_Room/player_card/kiko.png",
+        "archivedInput": "../Waiting_Room/player_card/kiko.png",
         "prompt": "Isolate the existing portrait of Kiko the lime-green frog, retaining his raised shiny round eyes, orange cheeks, little front feet and happy curved smile from the provided Pop Rush player card. Preserve this character's identity and the original round glossy 3D toy rendering, centered straight-on expression and soft upper-left lighting. Output a single head-and-visible-shoulders or head-and-visible-paws portrait for a tiny Gameplay scoreboard. Keep the complete silhouette including both ears, goggles or eyes, with a small even transparent margin. Make the character fill about 84–87% of a square canvas, preserving natural proportions. Remove the entire purple or gold card, surrounding background, all text, level, crown, border glow and green check mark. Reconstruct any tiny silhouette areas previously obscured by the card cleanly. True transparent RGBA background. No new objects, graphical frame, text, watermark, ground, or UI."
-      }
-    },
-    {
-      "file": "board-large.png",
-      "width": 1254,
-      "height": 1254,
-      "mode": "RGBA",
-      "layout": {
-        "rows": 4,
-        "columns": 4
-      },
-      "source": {
-        "kind": "generated-edit",
-        "tool": "Codex built-in ImageGen",
-        "input": "board.png",
-        "prompt": "Edit this existing Pop Rush board sprite into a clean character-free gameplay board. Remove the bunny head and both ears completely, and replace that entire area with a continuous smoothly rounded blue plastic shell. Keep the original toy-gloss visual style: cyan highlights, cobalt side depth, soft lavender outer rim, aqua inner playfield, and pale lavender concave bubble wells. Make the bubble wells visibly larger by using the whole center of the board. Center the playfield on both axes and use precisely 4 columns by 4 rows, exactly sixteen identical empty circular wells, in straight perfectly even square-grid rows and columns. On a square canvas aim for well centers at 20%, 40%, 60%, and 80% on both x and y, with each empty well close to 19% of canvas width in diameter. Even gaps and all bottom, top, and side wells fully visible. Keep outer case padding slim. Straight-on orthographic symmetrical board, no perspective, no character, animal face, ears, controls, icons, text, hands, labels, crown, or game HUD. Preserve true transparent RGBA around the outer board silhouette. Keep the smooth blue gloss, original turquoise grid and optionally two small golden glints confined to the shell corners."
       }
     },
     {
@@ -101,30 +60,8 @@
       "source": {
         "kind": "generated-edit",
         "tool": "Codex built-in ImageGen",
-        "input": "board-large.png",
+        "archivedInput": "board-large.png",
         "prompt": "Edit this existing Pop Rush board sprite by making the sixteen bubble wells as large as the square game board can accommodate. Keep the existing glossy cyan-blue rounded case and turquoise playfield, but slim down the bulky blue bezel on all four sides so the playable grid occupies 86–88% of the full square canvas in both dimensions. The sixteen identical round concave pale-lavender wells must be precisely four columns by four rows in a regular front-on square grid. Aim for centers around 17%, 39%, 61%, and 83% of canvas on both x and y, with diameter about 21% of canvas and a very narrow but visible gap between neighboring wells. All wells, including the corner wells, must remain complete circles, with just enough clearance for the rounded case. Center the square grid on both axes. The slim outer case retains glossy highlights and soft violet rim lighting. Tiny gold glints, if retained, must be outside the playfield. Match the current polished 3D toy-game style and square composition. Keep true transparent RGBA outside the full, unclipped board silhouette. Output only the board. No rabbit or ears, no hands, no text, no buttons, no badges, no new props, no perspective tilt. The key visible change is that the bubble wells are clearly bigger and the blue frame thinner than the input."
-      }
-    },
-    {
-      "file": "bubbles/matte-green.png",
-      "width": 256,
-      "height": 256,
-      "mode": "RGBA",
-      "state": "idle-green",
-      "source": {
-        "kind": "generated",
-        "tool": "Codex built-in ImageGen",
-        "output": "exec-13b464a6-3ded-4177-a90f-12695fc4bc92.png",
-        "prompt": "Create ONE clean, transparent PNG review sheet for the Pop Rush mobile game, containing exactly two isolated pop-it bubble sprites side by side. Use the supplied image only as the visual reference for the specific style of the round green pop bubbles called “Matte Soft.” Extract the look of those green domes into a new standalone original sprite design preview. Both sprites are raised ON-state silicone bubble domes seen exactly from above, with circular silhouettes, the same apparent diameter and matched lighting: one fresh bright lime-green bubble on the left that closely echoes the reference, and one cool soft white bubble on the right for this game's neutral cells. A slightly luminous diffuse top and upper-center, a smooth falloff to richer green at the lower edge (subtle neutral lilac-gray on the white bubble), and an almost imperceptible darker contact edge contained inside the circle. Soft-touch molded silicone with a softly rounded full volume, visibly matte, velvety and clean; simple and legible at 40-pixel game size. No glossy glints or hotspots, no outline, no rim, no base, no thick ring, no edge stroke, no plastic bezel, no external drop shadow or glow. Match the rounded uncomplicated dome in the reference. Exactly two equal-sized circles aligned horizontally at the same height with generous clear space and no touching. Wide landscape canvas, the two sprites large and centered symmetrically. True transparent alpha outside each bubble. Exclude the board, rabbit, UI, reference layout, typography, text, icons, labels, and props. This is solely an art-review comparison sheet, finished professional mobile-game sprite quality."
-      },
-      "normalization": {
-        "cropXYWH": [
-          93,
-          94,
-          700,
-          700
-        ],
-        "resample": "Lanczos"
       }
     },
     {
@@ -137,7 +74,7 @@
         "kind": "generated",
         "tool": "Codex built-in ImageGen",
         "output": "exec-13b464a6-3ded-4177-a90f-12695fc4bc92.png",
-        "promptSource": "bubbles/matte-green.png"
+        "archivedPromptSource": "bubbles/matte-green.png"
       },
       "normalization": {
         "cropXYWH": [
@@ -145,50 +82,6 @@
           94,
           700,
           700
-        ],
-        "resample": "Lanczos"
-      }
-    },
-    {
-      "file": "bubbles/matte-compress.png",
-      "width": 256,
-      "height": 256,
-      "mode": "RGBA",
-      "state": "compress",
-      "source": {
-        "kind": "generated",
-        "tool": "Codex built-in ImageGen",
-        "output": "exec-ab5a477e-7e10-4b42-b273-82cb428ac00e.png",
-        "prompt": "Create a single transparent PNG game sprite for an isolated lime green round Pop Rush Matte Soft pop-it membrane. The first image is the approved multi-stage review; the second provides exact soft silicone colors and the round silhouette for the idle green dome. Recreate exactly one specified state from the first reference as a standalone sprite, with a truly round front-facing orthographic silhouette that occupies about 84% of a square canvas, centered on both axes. Smooth matte soft-touch molded silicone, green palette matching both references, gentle broad light. The circular edges must be clean, smoothly antialiased, with true transparent PNG alpha outside the circle. All useful color and shading appear inside the disc. No labels, board, bezel, drop shadow, hands, texture grain, white ring, icon, sparkle, glow or check mark. This must look clearly different from the convex idle state and read at 40 px. Use only the SECOND disc in the first review image, labelled Compress. The raised dome is being pushed in around the center, forming a noticeable soft darker central dimple with a rounded shallow transition and some of the original padded convex volume around the perimeter. The lower edge remains gently shaded. Preserve the silhouette of the first idle disc. Deliver one disc only."
-      },
-      "normalization": {
-        "cropXYWH": [
-          44,
-          60,
-          1152,
-          1152
-        ],
-        "resample": "Lanczos"
-      }
-    },
-    {
-      "file": "bubbles/matte-popped.png",
-      "width": 256,
-      "height": 256,
-      "mode": "RGBA",
-      "state": "popped",
-      "source": {
-        "kind": "generated",
-        "tool": "Codex built-in ImageGen",
-        "output": "exec-4743a403-8401-4765-b6bb-c2dd60b175c9.png",
-        "prompt": "Create a single transparent PNG game sprite for an isolated lime green round Pop Rush Matte Soft pop-it membrane. The first image is the approved multi-stage review; the second provides exact soft silicone colors and the round silhouette for the idle green dome. Recreate exactly one specified state from the first reference as a standalone sprite, with a truly round front-facing orthographic silhouette that occupies about 84% of a square canvas, centered on both axes. Smooth matte soft-touch molded silicone, green palette matching both references, gentle broad light. The circular edges must be clean, smoothly antialiased, with true transparent PNG alpha outside the circle. All useful color and shading appear inside the disc. No labels, board, bezel, drop shadow, hands, texture grain, white ring, icon, sparkle, glow or check mark. This must look clearly different from the convex idle state and read at 40 px. Use only the THIRD disc in the first review image, labelled Popped. This is the stable fully inverted state: a visibly deep continuous shallow bowl like an inverted pop-it, with a much darker shaded upper interior and a softer lit lower interior, following the third review disc. The thin rolled edge remains green. It must read concave, especially at tiny size. Preserve the precise circular perimeter of the idle reference. Deliver one disc only."
-      },
-      "normalization": {
-        "cropXYWH": [
-          97,
-          105,
-          1048,
-          1048
         ],
         "resample": "Lanczos"
       }
@@ -383,16 +276,6 @@
       }
     },
     {
-      "file": "dock/dock-panel.png",
-      "width": 1024,
-      "height": 258,
-      "mode": "RGBA",
-      "source": {
-        "kind": "user-uploaded",
-        "note": "Glossy purple capsule dock panel with built-in vertical divider at 71.29% width."
-      }
-    },
-    {
       "file": "dock/skill-blast.png",
       "width": 256,
       "height": 256,
@@ -430,16 +313,6 @@
       "source": {
         "kind": "user-uploaded-matted",
         "note": "Freeze skill button converted from black-background JPEG to transparent RGBA preserving neon purple rim."
-      }
-    },
-    {
-      "file": "dock/btn-pop-rush.png",
-      "width": 256,
-      "height": 256,
-      "mode": "RGBA",
-      "source": {
-        "kind": "user-uploaded-matted",
-        "note": "Circular glossy Pop Rush button converted from black-background JPEG to transparent RGBA preserving neon purple rim."
       }
     }
   ]

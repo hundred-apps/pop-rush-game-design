@@ -97,6 +97,83 @@ const popRules = (() => {
     },
   ].map(withStageMeta);
 
+  const modeOrder = ["classic", "memory", "rush", "sequence", "color_hunt", "frenzy"];
+
+  const modes = {
+    classic: { id: "classic", name: "Classic Hunt", shortName: "Classic", maxLevel: 1, sessionsPerLevel: 4 },
+    memory: { id: "memory", name: "Memory", shortName: "Memory", maxLevel: 100, sessionsPerLevel: 10, targetRatio: 0.3 },
+    rush: { id: "rush", name: "Rush", shortName: "Rush", maxLevel: 1, durations: [30, 45, 60] },
+    sequence: { id: "sequence", name: "Sequence", shortName: "Sequence", maxLevel: 100, sessionsPerLevel: 10, targetRatio: 0.5 },
+    color_hunt: { id: "color_hunt", name: "Color Hunt", shortName: "Color", maxLevel: 100, sessionsPerLevel: 10, targetRatio: 0.5 },
+    frenzy: { id: "frenzy", name: "Frenzy", shortName: "Frenzy", maxLevel: 1, sessionsPerLevel: 1, targetRatio: 0.5 },
+  };
+
+  const colorHuntColors = [
+    { id: "red", label: "RED" },
+    { id: "green", label: "GREEN" },
+    { id: "yellow", label: "YELLOW" },
+    { id: "blue", label: "BLUE" },
+  ];
+
+  function shuffleArray(items) {
+    const arr = [...items];
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function pickRandomIndices(cellCount, count, exclude = []) {
+    const blocked = new Set(exclude);
+    const pool = [];
+    for (let i = 0; i < cellCount; i += 1) {
+      if (!blocked.has(i)) pool.push(i);
+    }
+    return shuffleArray(pool).slice(0, Math.min(count, pool.length));
+  }
+
+  function createClassicStages(board) {
+    const active = board ?? boards[1];
+    return active.stages.map((stage) =>
+      pickRandomIndices(active.cellCount, stage.length).sort((a, b) => a - b),
+    );
+  }
+
+  function createSessionTargets(cellCount, ratio) {
+    const count = Math.max(1, Math.min(cellCount, Math.round(cellCount * ratio)));
+    return pickRandomIndices(cellCount, count);
+  }
+
+  function pickClassicColorPair() {
+    const targetColor = colorHuntColors[Math.floor(Math.random() * colorHuntColors.length)];
+    return { targetColor, offColor: null };
+  }
+
+  function pickColorHuntPair() {
+    const [targetColor, offColor] = shuffleArray(colorHuntColors);
+    return { targetColor, offColor };
+  }
+
+  function getMode(id) {
+    return modes[id] ?? modes.classic;
+  }
+
+  function getNextMode(modeId) {
+    const index = modeOrder.indexOf(modeId);
+    if (index < 0 || index >= modeOrder.length - 1) return null;
+    return modeOrder[index + 1];
+  }
+
+  function getMemorySpillTiming(level) {
+    const lv = Math.max(1, Math.min(100, Number(level) || 1));
+    const t = (lv - 1) / 99;
+    return {
+      onMs: Math.round(420 - t * 200),
+      offMs: Math.round(160 - t * 70),
+    };
+  }
+
   return {
     players: [
       { name: "Luna", level: 12, character: "luna" },
@@ -106,9 +183,21 @@ const popRules = (() => {
     ],
     stages: defaultStages,
     boards,
+    modeOrder,
+    modes,
+    colorHuntColors,
+    frenzyMaxLives: 3,
     getBoard(id) {
       return boards.find((board) => board.id === id) ?? boards[1];
     },
+    pickRandomIndices,
+    createClassicStages,
+    createSessionTargets,
+    pickClassicColorPair,
+    pickColorHuntPair,
+    getMode,
+    getNextMode,
+    getMemorySpillTiming,
     matchDurationMs: 45_000,
     wrongPopLockMs: 1000,
     targetCount: defaultTargetCount,

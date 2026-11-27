@@ -120,51 +120,9 @@
     "source": "PNG supplied by the user for Home branding"
   },
   {
-    "file": "branding/logo.png",
-    "width": 295,
-    "height": 189,
-    "source": "logo versi baru dari preview; masking manual, resolusi asli"
-  },
-  {
-    "file": "branding/tagline.png",
-    "width": 305,
-    "height": 60,
-    "source": "tagline terpisah dari preview; masking manual"
-  },
-  {
-    "file": "hud/currency_panel.png",
-    "width": 500,
-    "height": 116,
-    "source": "panel kosong buatan baru; angka dinamis"
-  },
-  {
-    "file": "hud/level_panel.png",
-    "width": 500,
-    "height": 116,
-    "source": "panel kosong buatan baru"
-  },
-  {
-    "file": "navigation/bar.png",
-    "width": 1080,
-    "height": 210,
-    "source": "panel navigasi kosong buatan baru"
-  },
-  {
-    "file": "navigation/selected.png",
-    "width": 256,
-    "height": 220,
-    "source": "panel aktif kosong buatan baru"
-  },
-  {
     "file": "icon/tile.png",
     "width": 256,
     "height": 200,
     "source": "panel menu kosong buatan baru"
-  },
-  {
-    "file": "reference/original_home.png",
-    "width": 180,
-    "height": 354,
-    "source": "referensi asli pengguna"
   }
 ]

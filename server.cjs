@@ -3,15 +3,28 @@ const { createReadStream } = require("node:fs");
 const { stat } = require("node:fs/promises");
 const { resolve, relative, sep } = require("node:path");
 const { randomBytes, randomUUID } = require("node:crypto");
-const { players: seats, getBoard, matchDurationMs, wrongPopLockMs } = require("./gameplay-rules.js");
+const {
+  players: seats,
+  getBoard,
+  modeOrder,
+  modes,
+  getNextMode,
+  createClassicStages,
+  createSessionTargets,
+  pickClassicColorPair,
+  pickColorHuntPair,
+  frenzyMaxLives,
+  matchDurationMs,
+  wrongPopLockMs,
+} = require("./gameplay-rules.js");
 
 const rooms = new Map();
 const connections = new Map();
 const reconnectMs = 60_000;
 const launchDelayMs = 2500;
-const rootFiles = new Set(["index.html", "tailwind.css", "styles.css", "gameplay.css", "gameplay-rules.js",
-  "gameplay.js", "multiplayer.js", "app.js"]);
-const servedFolders = new Set(["pages", "sounds", "component_board"]);
+const rootFiles = new Set(["index.html", "tailwind.css", "styles.css", "gameplay.css", "panels.css", "gameplay-rules.js",
+  "gameplay.js", "multiplayer.js", "panels.js", "app.js"]);
+const servedFolders = new Set(["pages", "sounds"]);
 const mime = {
   html: "text/html; charset=utf-8", css: "text/css; charset=utf-8", js: "text/javascript; charset=utf-8",
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", mp3: "audio/mpeg",
@@ -141,8 +154,12 @@ function scorePlayer({ seat, play }) {
   return {
     seat,
     cleared: play?.cleared ?? 0,
+    totalCleared: play?.totalCleared ?? play?.cleared ?? 0,
+    score: play?.score ?? 0,
     targetCount: play?.targetCount ?? getBoard().targetCount,
     reachedAt: play?.reachedAt ?? 0,
+    lives: play?.lives ?? null,
+    alive: play?.alive ?? true,
   };
 }
 
@@ -152,6 +169,10 @@ function broadcast(room) {
   const players = joined.map(({ seat, socket, ready }) => ({ seat, connected: Boolean(socket), ready }));
   const state = {
     type: "state", code: room.code, mode: room.mode, host: room.host,
+    gameMode: match?.gameMode ?? room.gameMode,
+    rushSeconds: match?.rushSeconds ?? room.rushSeconds,
+    modeLevel: match?.modeLevel ?? room.modeLevel,
+    round: match?.round ?? 0,
     phase: match?.phase ?? "lobby", matchId: match?.id ?? null,
     startsAt: match?.startsAt ?? null, endsAt: match?.endsAt ?? null,
     finishedAt: match?.finishedAt ?? null, winner: match?.winner ?? null,
@@ -160,14 +181,15 @@ function broadcast(room) {
   };
   for (const player of joined) {
     if (!player.socket) continue;
-    send(player.socket, { ...state, you: player.seat, token: player.token, self: player.play ?? null });
+    const playState = player.play ? { ...player.play, stages: undefined } : null;
+    send(player.socket, { ...state, you: player.seat, token: player.token, self: playState });
   }
 }
 
 function createRoom(mode) {
   let code;
   do code = randomBytes(3).toString("hex").toUpperCase(); while (rooms.has(code));
-  const room = { code, mode, host: null, players: new Map(), match: null };
+  const room = { code, mode, gameMode: "classic", rushSeconds: 45, modeLevel: 1, host: null, players: new Map(), match: null };
   rooms.set(code, room);
   return room;
 }
@@ -234,13 +256,146 @@ function addPlayer(socket, room, boardId) {
   attach(socket, room, player);
 }
 
+function topScoreSeat(players) {
+  const ranked = [...players].sort((a, b) =>
+    (b.play?.score ?? 0) - (a.play?.score ?? 0) ||
+    (b.play?.cleared ?? 0) - (a.play?.cleared ?? 0) ||
+    (a.play?.reachedAt ?? 0) - (b.play?.reachedAt ?? 0),
+  );
+  return ranked[0]?.seat ?? null;
+}
+
 function finish(room, winner) {
   if (room.match?.phase !== "playing") return;
   clearTimeout(room.match.timer);
+  const gameMode = room.match.gameMode;
+  const resolvedWinner =
+    winner === null && (gameMode === "rush" || gameMode === "frenzy")
+      ? topScoreSeat(room.players.values())
+      : winner;
   room.match.phase = "finished";
-  room.match.winner = winner;
+  room.match.winner = resolvedWinner;
   room.match.finishedAt = Math.min(Date.now(), room.match.endsAt);
   room.match.scores = [...room.players.values()].map(scorePlayer);
+  broadcast(room);
+}
+
+function expectedTargetCount(board, gameMode) {
+  if (gameMode === "classic") return board.targetCount;
+  if (gameMode === "memory") return Math.max(1, Math.round(board.cellCount * 0.30)) * 10;
+  if (gameMode === "sequence") return board.cellCount * 10;
+  if (gameMode === "color_hunt") return Math.max(1, Math.round(board.cellCount * 0.50)) * 10;
+  return board.targetCount;
+}
+
+function createModeSession(board, gameMode, stageIdx, prebuiltStages) {
+  if (gameMode === "classic") {
+    return {
+      targets: [...(prebuiltStages?.[stageIdx] ?? board.stages[stageIdx])],
+      pushed: [],
+      spillOrder: null,
+      stageCount: prebuiltStages?.length ?? board.stages.length,
+    };
+  }
+  if (gameMode === "rush") {
+    return {
+      targets: createClassicStages(board)[0],
+      pushed: [],
+      colorPair: null,
+      spillOrder: null,
+      stageCount: null,
+    };
+  }
+  if (gameMode === "memory") {
+    const spillOrder = createSessionTargets(board.cellCount, 0.30);
+    return {
+      targets: [...spillOrder],
+      pushed: [],
+      colorPair: null,
+      spillOrder,
+      stageCount: 10,
+    };
+  }
+  if (gameMode === "sequence") {
+    return {
+      targets: createSessionTargets(board.cellCount, 0.50),
+      pushed: [],
+      colorPair: null,
+      spillOrder: null,
+      stageCount: 10,
+    };
+  }
+  if (gameMode === "color_hunt") {
+    return {
+      targets: createSessionTargets(board.cellCount, 0.50),
+      pushed: [],
+      colorPair: pickColorHuntPair(),
+      spillOrder: null,
+      stageCount: 10,
+    };
+  }
+  return {
+    targets: createSessionTargets(board.cellCount, 0.50),
+    pushed: [],
+    colorPair: null,
+    spillOrder: null,
+    stageCount: 1,
+  };
+}
+
+function getRoundDurationMs(gameMode, rushSeconds) {
+  if (gameMode === "classic") return matchDurationMs;
+  if (gameMode === "rush") return rushSeconds * 1000;
+  return 600_000;
+}
+
+function advanceRoomMode(room, roundWinnerSeat = null) {
+  const match = room.match;
+  if (match?.phase !== "playing") return;
+  const nextMode = getNextMode(match.gameMode);
+  if (!nextMode) {
+    finish(room, topScoreSeat(room.players.values()));
+    return;
+  }
+  if (roundWinnerSeat !== null) {
+    const roundWinner = room.players.get(roundWinnerSeat);
+    if (roundWinner?.play) roundWinner.play.score += 100;
+  }
+  clearTimeout(match.timer);
+  const rushSeconds = match.rushSeconds ?? 45;
+  const durationMs = getRoundDurationMs(nextMode, rushSeconds);
+  const startsAt = Date.now() + launchDelayMs;
+  const endsAt = startsAt + durationMs;
+  match.round += 1;
+  match.gameMode = nextMode;
+  match.durationMs = durationMs;
+  match.startsAt = startsAt;
+  match.endsAt = endsAt;
+  match.timer = setTimeout(
+    () => (getNextMode(nextMode) ? advanceRoomMode(room, null) : finish(room, null)),
+    launchDelayMs + durationMs,
+  );
+  for (const member of room.players.values()) {
+    const board = getBoard(member.boardId);
+    const stages = nextMode === "classic" ? createClassicStages(board) : null;
+    const session = createModeSession(board, nextMode, 0, stages);
+    const prev = member.play;
+    member.play = {
+      boardId: board.id,
+      stages,
+      ...session,
+      stage: 0,
+      cleared: 0,
+      totalCleared: prev?.totalCleared ?? prev?.cleared ?? 0,
+      score: prev?.score ?? 0,
+      lives: nextMode === "frenzy" ? frenzyMaxLives : null,
+      alive: true,
+      targetCount: expectedTargetCount(board, nextMode),
+      reachedAt: 0,
+      lockUntil: 0,
+      ack: prev?.ack ?? 0,
+    };
+  }
   broadcast(room);
 }
 
@@ -257,14 +412,39 @@ function start(room, player) {
   for (const member of [...room.players.values()]) {
     if (!member.socket) removePlayer(room, member);
   }
+  const gameMode = room.gameMode ?? "classic";
+  const rushSeconds = room.rushSeconds ?? 45;
+  const modeLevel = room.modeLevel ?? 1;
+  const durationMs = getRoundDurationMs(gameMode, rushSeconds);
   const startsAt = Date.now() + launchDelayMs;
-  const endsAt = startsAt + matchDurationMs;
-  const timer = setTimeout(() => finish(room, null), launchDelayMs + matchDurationMs);
-  room.match = { id: randomUUID(), phase: "playing", startsAt, endsAt, timer, winner: null };
+  const endsAt = startsAt + durationMs;
+  const timer = setTimeout(
+    () => (getNextMode(gameMode) ? advanceRoomMode(room, null) : finish(room, null)),
+    launchDelayMs + durationMs,
+  );
+  room.match = { id: randomUUID(), phase: "playing", round: 0, gameMode, rushSeconds, modeLevel, durationMs, startsAt, endsAt, timer, winner: null };
+  const classicColorPair = gameMode === "classic" ? pickClassicColorPair() : null;
   for (const member of joined) {
     const board = getBoard(member.boardId);
+    const stages = gameMode === "classic" ? createClassicStages(board) : null;
+    const session = createModeSession(board, gameMode, 0, stages);
     member.ready = false;
-    member.play = { boardId: board.id, targetCount: board.targetCount, stage: 0, popped: [], cleared: 0, reachedAt: 0, lockUntil: 0, ack: 0 };
+    member.play = {
+      boardId: board.id,
+      stages,
+      colorPair: classicColorPair,
+      ...session,
+      stage: 0,
+      cleared: 0,
+      totalCleared: 0,
+      score: 0,
+      lives: gameMode === "frenzy" ? frenzyMaxLives : null,
+      alive: true,
+      targetCount: expectedTargetCount(board, gameMode),
+      reachedAt: 0,
+      lockUntil: 0,
+      ack: 0,
+    };
   }
   broadcast(room);
 }
@@ -277,30 +457,84 @@ function play(room, player, message) {
 
   current.ack = message.seq;
   const now = Date.now();
-  if (match.phase !== "playing" || now < match.startsAt || current.stage !== message.stage || now < current.lockUntil) {
+  const staleRound = message.round !== undefined && message.round !== match.round;
+  if (match.phase !== "playing" || !current.alive || staleRound || now < match.startsAt ||
+      current.stage !== message.stage || now < current.lockUntil) {
     broadcast(room);
     return;
   }
   if (now >= match.endsAt) {
-    finish(room, null);
+    if (getNextMode(match.gameMode)) advanceRoomMode(room, null);
+    else finish(room, null);
     return;
   }
 
   const board = getBoard(current.boardId);
-  const targets = board.stages[current.stage];
-  const cleared = current.popped.length === targets.length;
-  if (message.type === "rush" && cleared && current.stage < board.stages.length - 1) {
-    current.stage += 1;
-    current.popped = [];
-  } else if (message.type === "pop" && !cleared && Number.isInteger(message.cell) && message.cell >= 0 && message.cell < board.cellCount) {
-    if (!targets.includes(message.cell) || current.popped.includes(message.cell)) {
-      current.lockUntil = now + wrongPopLockMs;
+  const gameMode = match.gameMode ?? "classic";
+  const cleared = current.targets.length === 0;
+
+  if (message.type === "rush" && cleared) {
+    if (gameMode === "rush") {
+      current.score += 50;
+      current.stage += 1;
+      Object.assign(current, createModeSession(board, "rush", current.stage));
+    } else if (current.stageCount && current.stage < current.stageCount - 1) {
+      current.stage += 1;
+      Object.assign(current, createModeSession(board, gameMode, current.stage, current.stages));
+    }
+  } else if (!cleared && (message.type === "rush" ||
+      (message.type === "pop" && Number.isInteger(message.cell) && message.cell >= 0 && message.cell < board.cellCount))) {
+    const targetIdx = message.type === "rush" ? -1 : current.targets.indexOf(message.cell);
+    if (targetIdx < 0) {
+      if (gameMode === "frenzy") {
+        current.lives = Math.max(0, (current.lives ?? frenzyMaxLives) - 1);
+        if (current.lives <= 0) {
+          current.alive = false;
+          const allOut = [...room.players.values()].every((m) => !m.socket || !m.play?.alive);
+          if (allOut) {
+            finish(room, topScoreSeat(room.players.values()));
+            return;
+          }
+        } else {
+          current.lockUntil = now + 380;
+        }
+      } else {
+        current.lockUntil = now + wrongPopLockMs;
+      }
     } else {
-      current.popped.push(message.cell);
+      current.targets.splice(targetIdx, 1);
       current.cleared += 1;
+      current.totalCleared = (current.totalCleared ?? 0) + 1;
+      current.score += 10;
       current.reachedAt = now - match.startsAt;
-      if (current.cleared === board.targetCount) {
-        finish(room, player.seat);
+
+      if (gameMode === "sequence") {
+        current.pushed.push(message.cell);
+        const occupied = new Set([...current.targets, ...current.pushed]);
+        const offPool = [];
+        for (let i = 0; i < board.cellCount; i += 1) {
+          if (!occupied.has(i)) offPool.push(i);
+        }
+        if (offPool.length > 0) {
+          current.targets.push(offPool[Math.floor(Math.random() * offPool.length)]);
+        }
+      } else if (gameMode === "frenzy") {
+        current.pushed = [message.cell];
+        const busy = new Set([message.cell, ...current.targets]);
+        const offPool = [];
+        for (let i = 0; i < board.cellCount; i += 1) {
+          if (!busy.has(i)) offPool.push(i);
+        }
+        if (offPool.length > 0) {
+          current.targets.push(offPool[Math.floor(Math.random() * offPool.length)]);
+        }
+      } else {
+        current.pushed.push(message.cell);
+      }
+
+      if (gameMode !== "rush" && gameMode !== "frenzy" &&
+          current.targets.length === 0 && current.stage === current.stageCount - 1) {
+        advanceRoomMode(room, player.seat);
         return;
       }
     }
@@ -323,6 +557,18 @@ function handleInput(socket, message) {
       broadcast(room);
     } else if (message.type === "board" && room.match?.phase !== "playing" && typeof message.boardId === "string") {
       player.boardId = getBoard(message.boardId).id;
+      broadcast(room);
+    } else if (message.type === "config" && room.match?.phase !== "playing" && room.host === player.seat) {
+      if (typeof message.gameMode === "string" && modeOrder.includes(message.gameMode)) {
+        room.gameMode = message.gameMode;
+      }
+      if ([30, 45, 60].includes(message.rushSeconds)) {
+        room.rushSeconds = message.rushSeconds;
+      }
+      if (Number.isInteger(message.modeLevel)) {
+        const maxLv = modes[room.gameMode]?.maxLevel ?? 100;
+        room.modeLevel = Math.max(1, Math.min(maxLv, message.modeLevel));
+      }
       broadcast(room);
     } else if (message.type === "start") {
       start(room, player);

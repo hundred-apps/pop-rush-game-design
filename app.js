@@ -79,6 +79,7 @@ characterSelect.addEventListener("click", () => {
   saveSelectedCharacter(previewCharacterSeat);
   characterSelect.textContent = "Selected";
   characterStatus.textContent = `${popRules.players[previewCharacterSeat].name} selected for Quick Match.`;
+  popPanels.syncHud();
 });
 
 const roomSeats = [...roomScreen.querySelectorAll(".player")].map(
@@ -173,29 +174,9 @@ boardUse.addEventListener("click", () => {
   renderBoard(previewBoard);
 });
 
-const panels = {
-  profile: ["Player profile", "Luna · Lv.12"],
-  coins: ["Coins", "Balance: 24,580 coins"],
-  gems: ["Gems", "Balance: 980 gems"],
-  mail: [
-    "Mail",
-    "Welcome to Pop Rush! Enter a room to meet Luna, Rex, Momo, and Kiko.",
-  ],
-  events: ["Events", "The lobby is open for Quick Match and Private Room."],
-  missions: ["Missions", "Join a room and get ready with Luna."],
-  shop: ["Shop", "Your balance is 24,580 coins and 980 gems."],
-  rewards: ["Rewards", "Check your inbox for the welcome message."],
-  ranking: [
-    "Ranking",
-    ["Kiko · Lv.13", "Luna · Lv.12", "Rex · Lv.11", "Momo · Lv.10"],
-  ],
-  inventory: ["Inventory", ["24,580 coins", "980 gems"]],
-  chat: ["Room chat", "Messages stay in this preview."],
-  fullscreen: [
-    "Full screen",
-    "Full-screen mode is unavailable in this tab. Try opening Pop Rush directly in your browser.",
-  ],
-};
+function openPanel(name) {
+  popPanels.open(name);
+}
 
 function renderRoute(moveFocus = false) {
   const previousView = showcase.dataset.view;
@@ -205,6 +186,7 @@ function renderRoute(moveFocus = false) {
   if (location.hash === "#character") view = "character";
   if (location.hash === "#board") view = "board";
   showcase.dataset.view = view;
+  roomScreen.dataset.private = String(isPrivate);
   quickBadge.hidden = isPrivate;
   privateBadge.hidden = !isPrivate;
 
@@ -266,7 +248,107 @@ function setRoomCodeInUrl(code) {
   if (url.href !== location.href) history.replaceState(null, "", url);
 }
 
+const roomModePicker = document.querySelector("#room-mode-picker");
+const roomModeButtons = document.querySelectorAll("[data-game-mode]");
+const roomRushDurations = document.querySelector("#room-rush-durations");
+const roomRushButtons = document.querySelectorAll("[data-rush-seconds]");
+const roomLevelStepper = document.querySelector("#room-level-stepper");
+const roomLevelPrev = document.querySelector("#room-level-prev");
+const roomLevelNext = document.querySelector("#room-level-next");
+const roomLevelLabel = document.querySelector("#room-level-label");
+const roomModeHint = document.querySelector("#room-mode-hint");
+
+function isOnlineRoomActive() {
+  return location.hash === "#private-room" && multiplayer.connected && multiplayer.state?.mode === "private";
+}
+
+function renderRoomModePicker(onlineState = null) {
+  const online = Boolean(onlineState) || isOnlineRoomActive();
+  const stateRef = onlineState ?? (online ? multiplayer.state : null);
+  const canEdit = !online || (stateRef.phase !== "playing" && stateRef.host === stateRef.you);
+  const modeId = online ? (stateRef.gameMode ?? "classic") : getSelectedGameMode();
+  const rushSec = online ? (stateRef.rushSeconds ?? 45) : getSelectedRushSeconds();
+  const meta = popRules.getMode(modeId);
+  const lv = online ? (stateRef.modeLevel ?? 1) : getModeLevel(modeId);
+
+  for (const btn of roomModeButtons) {
+    btn.setAttribute("aria-pressed", String(btn.dataset.gameMode === modeId));
+    btn.disabled = !canEdit;
+  }
+  roomRushDurations.hidden = modeId !== "rush";
+  if (modeId === "rush") {
+    for (const btn of roomRushButtons) {
+      btn.setAttribute("aria-pressed", String(Number(btn.dataset.rushSeconds) === rushSec));
+      btn.disabled = !canEdit;
+    }
+  }
+  const hasLevels = meta.maxLevel > 1;
+  roomLevelStepper.hidden = !hasLevels;
+  if (hasLevels) {
+    roomLevelLabel.textContent = `Lv. ${lv} / ${meta.maxLevel}`;
+    roomLevelPrev.disabled = !canEdit || lv <= 1;
+    roomLevelNext.disabled = !canEdit || lv >= meta.maxLevel;
+  }
+  roomModeHint.hidden = modeId === "rush" || hasLevels;
+  if (online && !canEdit) {
+    roomModeHint.hidden = false;
+    roomModeHint.textContent = `Host selected: ${meta.name}`;
+  } else if (modeId === "classic") {
+    roomModeHint.textContent = "All 6 modes: Classic \u2192 Frenzy";
+  } else if (modeId === "frenzy") {
+    roomModeHint.textContent = "Endless survival \u00b7 3 lives";
+  }
+}
+
+for (const btn of roomModeButtons) {
+  btn.addEventListener("click", () => {
+    const gameMode = btn.dataset.gameMode;
+    if (isOnlineRoomActive()) {
+      multiplayer.send("config", { gameMode });
+      return;
+    }
+    setSelectedGameMode(gameMode);
+    renderRoomModePicker();
+  });
+}
+
+for (const btn of roomRushButtons) {
+  btn.addEventListener("click", () => {
+    const rushSeconds = Number(btn.dataset.rushSeconds);
+    if (isOnlineRoomActive()) {
+      multiplayer.send("config", { rushSeconds });
+      return;
+    }
+    setSelectedRushSeconds(rushSeconds);
+    renderRoomModePicker();
+  });
+}
+
+roomLevelPrev.addEventListener("click", () => {
+  if (isOnlineRoomActive()) {
+    const current = multiplayer.state?.modeLevel ?? 1;
+    multiplayer.send("config", { modeLevel: Math.max(1, current - 1) });
+    return;
+  }
+  const modeId = getSelectedGameMode();
+  setModeLevel(modeId, getModeLevel(modeId) - 1);
+  renderRoomModePicker();
+});
+
+roomLevelNext.addEventListener("click", () => {
+  if (isOnlineRoomActive()) {
+    const current = multiplayer.state?.modeLevel ?? 1;
+    multiplayer.send("config", { modeLevel: Math.min(100, current + 1) });
+    return;
+  }
+  const modeId = getSelectedGameMode();
+  setModeLevel(modeId, getModeLevel(modeId) + 1);
+  renderRoomModePicker();
+});
+
 function renderQuickRoom(ready) {
+  roomModePicker.hidden = false;
+  renderRoomModePicker();
   const human = selectedCharacterSeat();
   renderRoomSeats(
     popRules.players.map((_, seat) => ({
@@ -285,6 +367,7 @@ function renderQuickRoom(ready) {
 }
 
 async function connectPrivateRoom() {
+  roomModePicker.hidden = false;
   const route = location.hash;
   const code = new URLSearchParams(location.search).get("room")?.toUpperCase();
   onlineRoomStatus.hidden = false;
@@ -370,6 +453,8 @@ function renderOnlineRoom(state) {
   inviteButton.hidden = playing;
   if (!inviteButton.hidden)
     inviteButton.textContent = `Room code · ${state.code}`;
+  roomModePicker.hidden = false;
+  renderRoomModePicker(state);
   const message = playing
     ? "Match in progress"
     : joined.length < 2
@@ -439,36 +524,6 @@ function setJoiningPrivateRoom(pending) {
   createPrivateRoom.disabled = pending;
   joinWithCode.disabled = pending;
   privateRoomCode.readOnly = pending;
-}
-
-function openPanel(name) {
-  const [title, content] = panels[name];
-  dialogTitle.textContent = title;
-  chatContent.hidden = name !== "chat";
-  dialogContent.replaceChildren();
-
-  if (Array.isArray(content)) {
-    const list = document.createElement(name === "ranking" ? "ol" : "ul");
-    list.className =
-      name === "ranking" ? "list-decimal space-y-2 pl-5" : "space-y-2";
-    for (const entry of content) {
-      const item = document.createElement("li");
-      item.textContent = entry;
-      list.append(item);
-    }
-    dialogContent.append(list);
-  } else {
-    dialogContent.textContent = content;
-  }
-
-  if (name === "mail") {
-    const mail = document.querySelector(".mail");
-    mail.classList.add("is-read");
-    mail.setAttribute("aria-label", "Mail");
-    mail.querySelector(".mail-count").hidden = true;
-  }
-
-  dialog.showModal();
 }
 
 document.querySelectorAll("[data-room]").forEach((button) => {
