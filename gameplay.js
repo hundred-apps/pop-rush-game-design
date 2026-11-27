@@ -468,7 +468,16 @@ topUpOffer.addEventListener("click", (event) => {
 
 function updateSkillVisuals(now) {
   const effects = run.effects;
-  gameplayGrid.toggleAttribute("data-fog", effects.fogUntil > now);
+  const gameplayBoard = gameplayGrid.parentElement;
+  const frozen = effects.paralyzeUntil > now;
+  const shuffled = effects.shuffleUntil > now;
+  const fogged = effects.fogUntil > now;
+  gameplayBoard?.toggleAttribute("data-frozen", frozen);
+  gameplayBoard?.toggleAttribute("data-shuffled", shuffled);
+  gameplayBoard?.toggleAttribute("data-fog", fogged);
+  gameplayGrid.toggleAttribute("data-frozen", frozen);
+  gameplayGrid.toggleAttribute("data-shuffled", shuffled);
+  gameplayGrid.toggleAttribute("data-fog", fogged);
   gameplayGrid.toggleAttribute("data-reverse", effects.reverseUntil > now);
   gameplayGrid.toggleAttribute("data-golden", effects.goldenUntil > now);
   for (const cell of gameplayCells) {
@@ -1186,7 +1195,7 @@ function startOnlineGameplay(state) {
   onlinePlayShown = false;
   onlinePlayBannerUntil = 0;
   onlineSpillKey = "";
-  onlineGameplay = { state, round: state.round ?? 0, receivedAt: performance.now(), sentSeq: state.self.ack, connected: true, lockUntil: 0 };
+  onlineGameplay = { state, round: state.round ?? 0, receivedAt: multiplayer.stateReceivedAt || performance.now(), sentSeq: state.self.ack, connected: true, lockUntil: 0 };
   activeMode = state.gameMode ?? "classic";
   loadFrenzyRivals();
   activeModeLevel = state.modeLevel ?? 1;
@@ -1324,6 +1333,12 @@ function stopGameplayMatch() {
   gameplayScreen.removeAttribute("data-attack-warning");
   gameplayScreen.removeAttribute("data-blocked-attack");
   gameplayScreen.removeAttribute("data-shield");
+  const gameplayBoard = gameplayGrid.parentElement;
+  gameplayBoard?.removeAttribute("data-frozen");
+  gameplayBoard?.removeAttribute("data-shuffled");
+  gameplayBoard?.removeAttribute("data-fog");
+  gameplayGrid.removeAttribute("data-frozen");
+  gameplayGrid.removeAttribute("data-shuffled");
   gameplayGrid.removeAttribute("data-fog");
   gameplayGrid.removeAttribute("data-reverse");
   gameplayGrid.removeAttribute("data-golden");

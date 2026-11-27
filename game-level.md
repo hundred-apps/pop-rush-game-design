@@ -146,15 +146,15 @@ Sistem level akun pemain (berbeda dari *Game Levels*) yang naik menggunakan **XP
 
 | Player Level | Total XP | Unlock / Hadiah Utama |
 | :--- | :--- | :--- |
-| 1 | 0 | Akses **Mode Classic** & **Slot Skill 1** |
+| 1 | 0 | Akses **Mode Classic** & **Slot Skill langsung 3** & Akses **Online Multiplayer (PvP)** + Skill **Paralyze** |
 | 2 | 200 | Akses **Mode Rush** + 250 Coin |
 | 3 | 500 | Akses **Mode Memory** + Skill *Shield* |
-| 4 | 900 | Akses **Online Multiplayer (PvP)** + Skill *Paralyze* |
-| 5 | 1.400 | **Slot Skill 2** + Bingkai Avatar *Rookie Popper* |
+| 4 | 900 | |
+| 5 | 1.400 | Bingkai Avatar *Rookie Popper* |
 | 6 | 2.000 | Akses **Mode Color** + 500 Coin |
 | 7 | 2.800 | Akses **Mode Sequence** + Skill *Blast* |
 | 8 | 3.700 | Akses **Mode Frenzy** + 10 Gem |
-| 10 | 5.000 | **Slot Skill 3** + Skin Papan *Neon Glow* |
+| 10 | 5.000 | Skin Papan *Neon Glow* |
 | 15 | 9.500 | Akses **Ranked Match** + Gelar *Pop Master* |
 | 20 | 15.000 | Skin Papan Eksklusif *Golden Touch* + 50 Gem |
 

@@ -303,8 +303,8 @@ function join(socket, message) {
   }
   const xp = Number.isSafeInteger(message.xp) && message.xp >= 0 ? message.xp : 0;
   const playerLevel = getPlayerLevel(xp).level;
-  if (playerLevel < (mode === "ranked" ? 15 : 4)) {
-    sendError(socket, mode === "ranked" ? "Ranked unlocks at Player Lv.15." : "Multiplayer unlocks at Player Lv.4.", true);
+  if (mode === "ranked" && playerLevel < 15) {
+    sendError(socket, "Ranked unlocks at Player Lv.15.", true);
     return;
   }
   message.xp = xp;

@@ -80,6 +80,7 @@ const roomSeats = [...roomScreen.querySelectorAll(".player")].map(
     const image = document.createElement("img");
     const name = document.createElement("strong");
     const status = document.createElement("span");
+    const botLevelSelect = document.createElement("select");
     card.className = "online-room-player";
     image.src = `pages/gameplay/player_card/${player.character}.png`;
     image.alt = "";
@@ -87,9 +88,21 @@ const roomSeats = [...roomScreen.querySelectorAll(".player")].map(
     image.hidden = true;
     name.textContent = "Open seat";
     status.textContent = "Waiting";
-    card.append(image, name, status);
+    botLevelSelect.className = "room-bot-level";
+    botLevelSelect.hidden = true;
+    for (const level of ["Easy", "Medium", "Hard", "Insane"]) {
+      botLevelSelect.append(new Option(`Bot · ${level}`, level));
+    }
+    botLevelSelect.addEventListener("change", () => {
+      const idx = Number(botLevelSelect.dataset.botIndex);
+      if (!Number.isInteger(idx)) return;
+      modeConfig.botSettings[idx] ??= { difficulty: "Medium" };
+      modeConfig.botSettings[idx].difficulty = botLevelSelect.value;
+      saveModeConfig();
+    });
+    card.append(image, name, status, botLevelSelect);
     slot.append(card);
-    return { card, image, name, status, player };
+    return { card, image, name, status, botLevelSelect, player };
   },
 );
 
@@ -325,9 +338,15 @@ function renderQuickRoom(ready) {
   roomModePicker.hidden = false;
   renderRoomModePicker();
   const human = selectedCharacterSeat();
+  const botSeats = popRules.players
+    .map((_, seat) => seat)
+    .filter((seat) => seat !== human)
+    .slice(0, modeConfig.botCount);
   renderRoomSeats(
-    [human, ...popRules.players.map((_, seat) => seat).filter((seat) => seat !== human).slice(0, modeConfig.botCount)]
-      .map((seat) => ({ seat, status: seat === human ? (ready ? "Ready" : "Not ready") : "Bot" })),
+    [
+      { seat: human, status: ready ? "Ready" : "Not ready" },
+      ...botSeats.map((seat, botIndex) => ({ seat, botIndex, status: "Bot" })),
+    ],
     human,
   );
   readyButton.disabled = false;
@@ -385,7 +404,7 @@ async function resumeOnlineGameplay(session) {
 }
 
 function renderRoomSeats(members = [], yourSeat) {
-  roomSeats.forEach(({ card, image, name, status, player }, seat) => {
+  roomSeats.forEach(({ card, image, name, status, botLevelSelect, player }, seat) => {
     const member = members.find((item) => item.seat === seat);
     card.toggleAttribute("data-self", Boolean(member && seat === yourSeat));
     image.hidden = !member;
@@ -394,7 +413,21 @@ function renderRoomSeats(members = [], yourSeat) {
     if (image.getAttribute("src") !== portrait) image.src = portrait;
     name.textContent = member ? `${member.weeklyCrown ? "♛ " : ""}${member.name ?? player.name}` : "Open seat";
     card.dataset.frame = member?.frame ?? "";
-    status.textContent = member?.title ? `${member.status} · ${member.title}` : member?.status ?? "Waiting";
+    const isPracticeBot = Number.isInteger(member?.botIndex);
+    if (isPracticeBot) {
+      const config = modeConfig.botSettings[member.botIndex] ??= { difficulty: "Medium" };
+      const difficulty = ["Easy", "Medium", "Hard", "Insane"].includes(config.difficulty) ? config.difficulty : "Medium";
+      botLevelSelect.dataset.botIndex = String(member.botIndex);
+      botLevelSelect.value = difficulty;
+      botLevelSelect.setAttribute("aria-label", `${member.name ?? player.name} level`);
+      botLevelSelect.hidden = false;
+      status.hidden = true;
+    } else {
+      delete botLevelSelect.dataset.botIndex;
+      botLevelSelect.hidden = true;
+      status.hidden = false;
+      status.textContent = member?.title ? `${member.status} · ${member.title}` : member?.status ?? "Waiting";
+    }
   });
 }
 
@@ -444,7 +477,7 @@ function renderOnlineRoom(state) {
   const message = playing
     ? "Match in progress"
     : isQueue && state.prepareUntil
-      ? "Choose your deck and tap Ready · 15s preparation"
+      ? "Choose your setting and tap Ready · 15s preparation"
       : isQueue
         ? state.mode === "ranked" ? "Finding a player from your tier" : "Finding players · Bots fill empty seats after 12s"
     : joined.length < 2
@@ -522,7 +555,7 @@ function setJoiningPrivateRoom(pending) {
 
 async function openOnlineDialog() {
   const route = location.hash;
-  const onlineUnlocked = popPanels.getPlayerLevel() >= 4;
+  const onlineUnlocked = true;
   const rankedUnlocked = popPanels.getPlayerLevel() >= 15;
   const modeSelect = document.querySelector("#online-queue-mode");
   for (const option of modeSelect.options) option.disabled = !popPanels.modeUnlocked(option.value);
@@ -536,9 +569,7 @@ async function openOnlineDialog() {
   const available = onlineUnlocked && await multiplayer.available();
   if (location.hash !== route || privateRoomDialog.open) return;
   privateRoomCode.value = "";
-  privateRoomFeedback.textContent = onlineUnlocked
-    ? available ? "" : "Multiplayer server unavailable."
-    : "Online multiplayer unlocks at Player Lv.4.";
+  privateRoomFeedback.textContent = available ? "" : "Multiplayer server unavailable.";
   if (!available) {
     createPrivateRoom.disabled = true;
     joinWithCode.disabled = true;

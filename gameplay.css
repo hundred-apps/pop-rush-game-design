@@ -35,6 +35,11 @@
   object-fit: contain;
 }
 
+.online-room-player:has(.room-bot-level:not([hidden])) img {
+  width: 15.5cqw;
+  height: 15.5cqw;
+}
+
 .online-room-player strong {
   font-size: 4.6cqw;
   line-height: 1;
@@ -42,6 +47,25 @@
 
 .online-room-player span {
   font-size: 3.7cqw;
+}
+
+.room-bot-level {
+  max-width: 92%;
+  padding: 0.35cqw 1.4cqw;
+  border: 0.35cqw solid #a9ccff;
+  border-radius: 999px;
+  background: #231b5c;
+  color: #fff;
+  font-size: clamp(9px, 3.1cqw, 12px);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+}
+
+.room-bot-level option {
+  background: #231b5c;
+  color: #fff;
 }
 
 .online-room-status {
@@ -950,13 +974,15 @@
 }
 
 .screen .deck-shortcut {
+  padding-inline: 1cqw;
   border: 1px solid #adadee;
   border-radius: 999px;
   background: linear-gradient(#6e55d5, #271761);
   box-shadow: 0 2px 4px #170b52a0;
   color: white;
-  font-size: clamp(10px, 3cqw, 15px);
+  font-size: clamp(9px, 2.7cqw, 13px);
   font-weight: 800;
+  white-space: nowrap;
   z-index: 5;
 }
 
@@ -1209,15 +1235,340 @@
   rotate: 180deg;
 }
 
-.gameplay-bubbles[data-fog]::after {
-  content: "";
+.gameplay-board-fx {
   position: absolute;
-  z-index: 3;
   inset: 3%;
+  z-index: 5;
   border-radius: 14%;
-  background: radial-gradient(ellipse at 30% 60%, #25163ce8 12%, transparent 62%),
-    radial-gradient(ellipse at 65% 35%, #492654ed 18%, transparent 62%);
+  overflow: hidden;
   pointer-events: none;
+}
+
+.board-fx {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+/* 1. Freeze / Paralyze board attack FX */
+.gameplay-board[data-frozen] .board-fx--freeze {
+  opacity: 1;
+}
+
+.gameplay-bubbles[data-frozen] .gameplay-bubble-face {
+  filter: saturate(0.72) brightness(1.14) hue-rotate(16deg);
+}
+
+.fx-ice-veil {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(125deg, rgb(255 255 255 / 26%) 0%, transparent 32%, rgb(156 238 255 / 22%) 56%, transparent 78%),
+    radial-gradient(circle at 50% 50%, rgb(178 242 255 / 12%) 35%, rgb(72 198 255 / 54%) 100%);
+  backdrop-filter: blur(1.5px) saturate(1.22);
+  box-shadow:
+    inset 0 0 4.5cqw rgb(176 244 255 / 92%),
+    inset 0 0 10cqw rgb(64 190 255 / 48%);
+}
+
+.fx-ice-shard {
+  position: absolute;
+  width: 24%;
+  height: 24%;
+  background: linear-gradient(145deg, rgb(255 255 255 / 88%), rgb(138 232 255 / 62%) 58%, rgb(72 184 255 / 24%));
+  box-shadow: 0 0 1.2cqw rgb(180 248 255 / 65%);
+}
+
+.fx-ice-shard--1 {
+  top: 0;
+  left: 0;
+  clip-path: polygon(0 0, 100% 0, 44% 48%, 0 100%);
+}
+
+.fx-ice-shard--2 {
+  top: 0;
+  right: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 56% 48%);
+}
+
+.fx-ice-shard--3 {
+  bottom: 0;
+  left: 0;
+  clip-path: polygon(0 0, 46% 52%, 100% 100%, 0 100%);
+}
+
+.fx-ice-shard--4 {
+  bottom: 0;
+  right: 0;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%, 54% 52%);
+}
+
+.fx-ice-flake {
+  position: absolute;
+  color: #f4fdff;
+  font-size: 6cqw;
+  line-height: 1;
+  text-shadow: 0 0 1.2cqw #45ccff, 0 0 2.2cqw #ffffff;
+}
+
+.fx-ice-flake--1 { top: 14%; left: 16%; }
+.fx-ice-flake--2 { top: 18%; right: 17%; font-size: 5cqw; }
+.fx-ice-flake--3 { bottom: 20%; left: 22%; font-size: 5.2cqw; }
+.fx-ice-flake--4 { bottom: 16%; right: 18%; font-size: 6.4cqw; }
+
+/* 2. Shuffle / Wind gust board attack FX */
+.gameplay-board[data-shuffled] .board-fx--shuffle {
+  opacity: 1;
+}
+
+.fx-wind-streak {
+  position: absolute;
+  left: -35%;
+  width: 68%;
+  height: 2.2cqw;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, rgb(172 246 255 / 35%) 25%, rgb(255 255 255 / 92%) 72%, transparent 100%);
+  box-shadow: 0 0 1.4cqw rgb(125 236 255 / 65%);
+}
+
+.fx-wind-streak--1 { top: 16%; }
+.fx-wind-streak--2 { top: 34%; width: 76%; height: 2.6cqw; }
+.fx-wind-streak--3 { top: 51%; }
+.fx-wind-streak--4 { top: 68%; width: 74%; height: 2.5cqw; }
+.fx-wind-streak--5 { top: 83%; }
+
+.fx-wind-swirl {
+  position: absolute;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 1.4cqw solid transparent;
+  border-top-color: rgb(255 255 255 / 88%);
+  border-right-color: rgb(156 242 255 / 70%);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 1cqw rgb(132 234 255 / 75%));
+}
+
+.fx-wind-swirl--1 { top: 18%; left: 18%; }
+.fx-wind-swirl--2 { bottom: 18%; right: 16%; width: 28%; }
+
+/* 3. Fog / Ink splatter board attack FX */
+.gameplay-board[data-fog] .board-fx--fog {
+  opacity: 1;
+}
+
+.fx-fog-cloud {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(8px);
+}
+
+.fx-fog-cloud--1 {
+  top: -8%;
+  left: -10%;
+  width: 78%;
+  height: 66%;
+  background: radial-gradient(circle, rgb(42 22 70 / 88%) 22%, rgb(74 36 96 / 68%) 56%, transparent 78%);
+}
+
+.fx-fog-cloud--2 {
+  top: 18%;
+  right: -12%;
+  width: 82%;
+  height: 70%;
+  background: radial-gradient(circle, rgb(32 16 58 / 90%) 24%, rgb(69 32 88 / 72%) 58%, transparent 80%);
+}
+
+.fx-fog-cloud--3 {
+  bottom: -10%;
+  left: 12%;
+  width: 76%;
+  height: 60%;
+  background: radial-gradient(circle, rgb(52 24 80 / 84%) 20%, rgb(88 42 106 / 58%) 56%, transparent 78%);
+}
+
+.fx-ink-splat {
+  position: absolute;
+  background: radial-gradient(circle at 38% 34%, rgb(92 48 138 / 88%), rgb(34 14 60 / 95%) 58%, rgb(20 8 38 / 90%) 100%);
+  box-shadow:
+    inset 0 0.6cqw 1cqw rgb(176 116 255 / 38%),
+    0 0.8cqw 2cqw rgb(14 4 30 / 62%);
+}
+
+.fx-ink-splat--1 {
+  top: 12%;
+  left: 14%;
+  width: 28%;
+  height: 26%;
+  border-radius: 44% 56% 62% 38% / 52% 40% 60% 48%;
+}
+
+.fx-ink-splat--2 {
+  top: 22%;
+  right: 14%;
+  width: 34%;
+  height: 30%;
+  border-radius: 58% 42% 39% 61% / 44% 62% 38% 56%;
+}
+
+.fx-ink-splat--3 {
+  bottom: 18%;
+  left: 24%;
+  width: 31%;
+  height: 29%;
+  border-radius: 61% 39% 54% 46% / 46% 52% 48% 54%;
+}
+
+.fx-ink-splat--4 {
+  bottom: 14%;
+  right: 18%;
+  width: 24%;
+  height: 23%;
+  border-radius: 38% 62% 48% 52% / 60% 42% 58% 40%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gameplay-board[data-frozen] {
+    animation: fx-freeze-shiver 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97) 1;
+  }
+
+  .gameplay-board[data-frozen] .fx-ice-shard--1 {
+    animation: fx-shard-tl 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .gameplay-board[data-frozen] .fx-ice-shard--2 {
+    animation: fx-shard-tr 0.34s cubic-bezier(0.22, 1, 0.36, 1) 0.04s both;
+  }
+
+  .gameplay-board[data-frozen] .fx-ice-shard--3 {
+    animation: fx-shard-bl 0.34s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+  }
+
+  .gameplay-board[data-frozen] .fx-ice-shard--4 {
+    animation: fx-shard-br 0.34s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+  }
+
+  .gameplay-board[data-frozen] .fx-ice-flake {
+    animation: fx-flake-drift 1.8s ease-in-out infinite alternate;
+  }
+
+  .gameplay-board[data-frozen] .fx-ice-flake--2 { animation-delay: 0.25s; }
+  .gameplay-board[data-frozen] .fx-ice-flake--3 { animation-delay: 0.5s; }
+  .gameplay-board[data-frozen] .fx-ice-flake--4 { animation-delay: 0.75s; }
+
+  .gameplay-board[data-shuffled] .fx-wind-streak {
+    animation: fx-wind-gust 0.58s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .gameplay-board[data-shuffled] .fx-wind-streak--2 { animation-delay: 0.08s; }
+  .gameplay-board[data-shuffled] .fx-wind-streak--3 { animation-delay: 0.16s; }
+  .gameplay-board[data-shuffled] .fx-wind-streak--4 { animation-delay: 0.05s; }
+  .gameplay-board[data-shuffled] .fx-wind-streak--5 { animation-delay: 0.2s; }
+
+  .gameplay-board[data-shuffled] .fx-wind-swirl {
+    animation: fx-wind-spin 0.65s ease-out infinite;
+  }
+
+  .gameplay-board[data-shuffled] .fx-wind-swirl--2 {
+    animation-delay: 0.14s;
+  }
+
+  .gameplay-bubbles[data-shuffled] .gameplay-bubble-face {
+    animation: fx-shuffle-wobble 0.45s ease-in-out 2;
+  }
+
+  .gameplay-board[data-fog] .fx-fog-cloud--1 {
+    animation: fx-fog-drift-a 3.2s ease-in-out infinite alternate;
+  }
+
+  .gameplay-board[data-fog] .fx-fog-cloud--2 {
+    animation: fx-fog-drift-b 3.6s ease-in-out infinite alternate;
+  }
+
+  .gameplay-board[data-fog] .fx-fog-cloud--3 {
+    animation: fx-fog-drift-a 4s ease-in-out infinite alternate-reverse;
+  }
+
+  .gameplay-board[data-fog] .fx-ink-splat {
+    animation: fx-ink-splash 0.4s cubic-bezier(0.22, 1, 0.36, 1) both,
+      fx-ink-ooze 3.4s ease-in-out 0.4s infinite alternate;
+  }
+
+  .gameplay-board[data-fog] .fx-ink-splat--2 { animation-delay: 0.06s, 0.46s; }
+  .gameplay-board[data-fog] .fx-ink-splat--3 { animation-delay: 0.12s, 0.52s; }
+  .gameplay-board[data-fog] .fx-ink-splat--4 { animation-delay: 0.18s, 0.58s; }
+}
+
+@keyframes fx-freeze-shiver {
+  0%, 100% { transform: none; }
+  20% { transform: translate3d(-4px, 0, 0) rotate(-0.8deg); }
+  45% { transform: translate3d(4px, 1px, 0) rotate(0.8deg); }
+  70% { transform: translate3d(-2px, -1px, 0) rotate(-0.4deg); }
+}
+
+@keyframes fx-shard-tl {
+  from { opacity: 0; transform: translate3d(-26%, -26%, 0) scale(0.75); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fx-shard-tr {
+  from { opacity: 0; transform: translate3d(26%, -26%, 0) scale(0.75); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fx-shard-bl {
+  from { opacity: 0; transform: translate3d(-26%, 26%, 0) scale(0.75); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fx-shard-br {
+  from { opacity: 0; transform: translate3d(26%, 26%, 0) scale(0.75); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fx-flake-drift {
+  from { opacity: 0.72; transform: translate3d(0, -4px, 0) rotate(0deg); }
+  to { opacity: 1; transform: translate3d(4px, 6px, 0) rotate(24deg); }
+}
+
+@keyframes fx-wind-gust {
+  0% { opacity: 0; transform: translate3d(-30%, 0, 0) scaleX(0.65); }
+  28% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate3d(210%, 0, 0) scaleX(1.15); }
+}
+
+@keyframes fx-wind-spin {
+  0% { opacity: 0; transform: scale(0.55) rotate(-90deg); }
+  35% { opacity: 0.9; }
+  100% { opacity: 0; transform: scale(1.25) rotate(270deg); }
+}
+
+@keyframes fx-shuffle-wobble {
+  0%, 100% { transform: none; }
+  25% { transform: translate3d(3px, -2px, 0) rotate(8deg) scale(0.95); }
+  75% { transform: translate3d(-3px, 2px, 0) rotate(-8deg) scale(1.04); }
+}
+
+@keyframes fx-fog-drift-a {
+  from { transform: translate3d(-4%, -2%, 0) scale(1); }
+  to { transform: translate3d(6%, 4%, 0) scale(1.08); }
+}
+
+@keyframes fx-fog-drift-b {
+  from { transform: translate3d(5%, -3%, 0) scale(1.06); }
+  to { transform: translate3d(-5%, 4%, 0) scale(0.98); }
+}
+
+@keyframes fx-ink-splash {
+  from { opacity: 0; transform: scale(0.28); }
+  65% { opacity: 1; transform: scale(1.08); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fx-ink-ooze {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(2px, 6px, 0) scale(1.04); }
 }
 
 .gameplay-bubbles[data-golden] [data-target] .gameplay-bubble-face {

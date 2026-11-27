@@ -35,13 +35,13 @@
     </script>
     <link rel="stylesheet" href="tailwind.css" />
     <link rel="stylesheet" href="styles.css?v=10" />
-    <link rel="stylesheet" href="gameplay.css?v=65" />
+    <link rel="stylesheet" href="gameplay.css?v=67" />
     <link rel="stylesheet" href="panels.css?v=21" />
-    <script src="gameplay-rules.js?v=10" defer></script>
-    <script src="gameplay.js?v=39" defer></script>
-    <script src="multiplayer.js?v=7" defer></script>
-    <script src="panels.js?v=16" defer></script>
-    <script src="app.js?v=33" defer></script>
+    <script src="gameplay-rules.js?v=13" defer></script>
+    <script src="gameplay.js?v=41" defer></script>
+    <script src="multiplayer.js?v=8" defer></script>
+    <script src="panels.js?v=17" defer></script>
+    <script src="app.js?v=34" defer></script>
   </head>
   <body>
     <div class="startup-loader" id="startup-loader" role="status">
@@ -130,11 +130,11 @@
             </button>
             <button
               class="spot deck-shortcut"
-              style="--x: 146; --y: 58; --w: 26; --h: 15"
+              style="--x: 138; --y: 58; --w: 34; --h: 15"
               type="button"
               data-panel="deck"
             >
-              Deck
+              Setting
             </button>
           </header>
 
@@ -429,7 +429,7 @@
             </h2>
             <div
               class="spot art mode-badge"
-              style="--x: 27; --y: 38; --w: 106; --h: 22"
+              style="--x: 36; --y: 38; --w: 97; --h: 22"
             >
               <span id="quick-badge" class="grid h-full place-items-center"
                 >Vs Bots</span
@@ -452,11 +452,11 @@
             </button>
             <button
               class="spot deck-shortcut"
-              style="--x: 4; --y: 39; --w: 22; --h: 18"
+              style="--x: 4; --y: 39; --w: 30; --h: 18"
               type="button"
               data-panel="deck"
             >
-              Deck
+              Setting
             </button>
           </header>
 
@@ -761,6 +761,37 @@
               role="group"
               aria-label="4 by 4 bubble board"
             ></div>
+            <div class="gameplay-board-fx" id="gameplay-board-fx" aria-hidden="true">
+              <div class="board-fx board-fx--freeze">
+                <span class="fx-ice-veil"></span>
+                <span class="fx-ice-shard fx-ice-shard--1"></span>
+                <span class="fx-ice-shard fx-ice-shard--2"></span>
+                <span class="fx-ice-shard fx-ice-shard--3"></span>
+                <span class="fx-ice-shard fx-ice-shard--4"></span>
+                <span class="fx-ice-flake fx-ice-flake--1">❄</span>
+                <span class="fx-ice-flake fx-ice-flake--2">❄</span>
+                <span class="fx-ice-flake fx-ice-flake--3">❄</span>
+                <span class="fx-ice-flake fx-ice-flake--4">❄</span>
+              </div>
+              <div class="board-fx board-fx--shuffle">
+                <span class="fx-wind-streak fx-wind-streak--1"></span>
+                <span class="fx-wind-streak fx-wind-streak--2"></span>
+                <span class="fx-wind-streak fx-wind-streak--3"></span>
+                <span class="fx-wind-streak fx-wind-streak--4"></span>
+                <span class="fx-wind-streak fx-wind-streak--5"></span>
+                <span class="fx-wind-swirl fx-wind-swirl--1"></span>
+                <span class="fx-wind-swirl fx-wind-swirl--2"></span>
+              </div>
+              <div class="board-fx board-fx--fog">
+                <span class="fx-fog-cloud fx-fog-cloud--1"></span>
+                <span class="fx-fog-cloud fx-fog-cloud--2"></span>
+                <span class="fx-fog-cloud fx-fog-cloud--3"></span>
+                <span class="fx-ink-splat fx-ink-splat--1"></span>
+                <span class="fx-ink-splat fx-ink-splat--2"></span>
+                <span class="fx-ink-splat fx-ink-splat--3"></span>
+                <span class="fx-ink-splat fx-ink-splat--4"></span>
+              </div>
+            </div>
           </div>
 
           <footer class="spot gameplay-controls" style="--x: 0; --w: 178">

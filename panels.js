@@ -452,9 +452,9 @@ const popPanels = (() => {
         if (isOnline) submitOnlineReady(false);
       }));
     if (useVersusDeck) {
-      root.append(actionBtn("Save as default lobby deck", "blue", () => {
+      root.append(actionBtn("Save as default lobby setting", "blue", () => {
         setDeckSkills(ids, true, true);
-        showToast("Lobby deck saved.");
+        showToast("Lobby setting saved.");
       }));
     }
     if (inLobby && state.coins < cost) {
@@ -483,10 +483,6 @@ const popPanels = (() => {
       const config = modeConfig.botSettings[index] ??= { difficulty: "Medium" };
       const card = el("fieldset", "deck-bot");
       card.append(el("legend", "", `Bot ${index + 1}`),
-        deckSelect("Difficulty", ["Easy", "Medium", "Hard", "Insane"].map((id) => [id, id]), config.difficulty, (value) => {
-          config.difficulty = value;
-          saveModeConfig();
-        }),
         deckSelect("Loadout", [["auto", "Auto"], ["custom", "Custom"]], config.skills ? "custom" : "auto", (value) => {
           config.skills = value === "custom" ? [...popRules.defaultLoadout] : null;
           saveModeConfig();
@@ -2618,8 +2614,8 @@ const popPanels = (() => {
 
   const panelMeta = {
     deck: {
-      title: "Skill Deck",
-      subtitle: "Equip up to three skills",
+      title: "Setting",
+      subtitle: "Skills & match settings",
       wallet: true,
       render: renderDeck,
     },

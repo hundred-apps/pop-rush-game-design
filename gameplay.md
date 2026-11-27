@@ -65,7 +65,7 @@
 
 
 ### Attack (Mengganggu Lawan)
-- **Paralyze**: Membekukan papan lawan sehingga tidak bisa menekan gelembung apa pun selama 2 detik.
+- **ice**: Membekukan papan lawan sehingga tidak bisa menekan gelembung apa pun selama 2 detik.
 - **Shuffle**: Mengacak ulang posisi seluruh target gelembung aktif di papan lawan secara tiba-tiba.
 - **Fog / Ink**: Menutupi sebagian area papan lawan dengan kabut atau bercak tinta selama 4 detik sehingga target sulit terlihat.
 - **Fake Target**: Memunculkan 3 gelembung jebakan (`void`/`salah`) yang terlihat mirip dengan target `benar` di papan lawan selama 4 detik.

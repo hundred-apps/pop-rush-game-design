@@ -121,15 +121,15 @@ const popRules = (() => {
   ].map(([streak, multiplier, points, durationMs, label]) => ({ streak, multiplier, points, durationMs, label }));
 
   const playerLevels = [
-    { level: 1, xp: 0, slots: 1, label: "Classic · Skill Slot 1" },
+    { level: 1, xp: 0, slots: 3, label: "Classic · 3 Skill Slots · Multiplayer" },
     { level: 2, xp: 200, coins: 250, label: "Rush · 250 Coins" },
-    { level: 3, xp: 500, skill: "shield", label: "Memory · Shield" },
-    { level: 4, xp: 900, skill: "paralyze", label: "Online Multiplayer · Paralyze" },
-    { level: 5, xp: 1400, slots: 2, frame: "rookie", label: "Skill Slot 2 · Rookie Popper frame" },
+    { level: 3, xp: 500, label: "Memory" },
+    { level: 4, xp: 900, coins: 250, label: "250 Bonus Coins" },
+    { level: 5, xp: 1400, frame: "rookie", label: "Rookie Popper frame" },
     { level: 6, xp: 2000, coins: 500, label: "Color Hunt · 500 Coins" },
-    { level: 7, xp: 2800, skill: "blast", label: "Sequence · Blast" },
+    { level: 7, xp: 2800, label: "Sequence" },
     { level: 8, xp: 3700, gems: 10, label: "Frenzy · 10 Gems" },
-    { level: 10, xp: 5000, slots: 3, board: "neon", label: "Skill Slot 3 · Neon Glow" },
+    { level: 10, xp: 5000, board: "neon", label: "Neon Glow board" },
     { level: 15, xp: 9500, title: "Pop Master", label: "Ranked Match · Pop Master title" },
     { level: 20, xp: 15000, board: "golden", gems: 50, label: "Golden Touch · 50 Gems" },
   ];
@@ -159,12 +159,12 @@ const popRules = (() => {
     return playerThresholds[Math.max(1, Math.min(20, Math.trunc(Number(level)) || 1)) - 1];
   }
 
-  function playerSkillSlots(xp) {
-    return xp >= 5000 ? 3 : xp >= 1400 ? 2 : 1;
+  function playerSkillSlots() {
+    return 3;
   }
 
-  function skillUnlockLevel(id) {
-    return playerLevels.find((entry) => entry.skill === id)?.level ?? 1;
+  function skillUnlockLevel() {
+    return 1;
   }
 
   function allowedPlayerLoadout(ids, allowAttack, xp) {
@@ -385,13 +385,8 @@ const popRules = (() => {
     return Math.round(min + Math.random() * (max - min));
   }
 
-  function createBotLoadout(difficulty = "Medium") {
-    const attack = shuffleArray(["paralyze", "shuffle", "reverse", "fog", "fake_target"]);
-    const defend = shuffleArray(["shield", "revive", "streak_saver"]);
-    const power = shuffleArray(["blast", "double", "magnet", "golden_bubble"]);
-    if (difficulty === "Easy") return [power[0], power[1], defend[0]];
-    if (difficulty === "Insane") return [attack[0], attack[1], Math.random() < 0.5 ? "cleanse" : power[0]];
-    return [attack[0], difficulty === "Hard" ? "cleanse" : defend[0], power[0]];
+  function createBotLoadout() {
+    return shuffleArray(["paralyze", "shuffle", "fog"]);
   }
 
   function chooseBotSkill(bot, now, context) {
@@ -412,9 +407,11 @@ const popRules = (() => {
       const defense = available.find((id) => skillDefinitions[id].kind === "defend");
       if (defense) return defense;
     }
-    const attack = available.find((id) => skillDefinitions[id].kind === "attack");
-    if (attack && (difficulty !== "Medium" || Math.random() < 0.4)) return attack;
-    return available.find((id) => skillDefinitions[id].kind === "power");
+    const attacks = available.filter((id) => skillDefinitions[id].kind === "attack");
+    const powers = available.filter((id) => skillDefinitions[id].kind === "power");
+    if (difficulty === "Medium" && powers.length > 0 && Math.random() >= 0.4) return powers[0];
+    if (attacks.length > 0) return shuffleArray(attacks)[0];
+    return powers[0];
   }
 
   function hasDebuff(run, now) {
@@ -445,7 +442,7 @@ const popRules = (() => {
         run.cooldowns.revive = now + (run.weekend ? 8000 : 10_000);
         break;
       case "cleanse":
-        for (const field of ["paralyzeUntil", "fogUntil", "fakeUntil", "reverseUntil", "fakeIds"]) delete run.effects[field];
+        for (const field of ["paralyzeUntil", "shuffleUntil", "fogUntil", "fakeUntil", "reverseUntil", "fakeIds"]) delete run.effects[field];
         break;
       case "time_slow": run.effects.timeSlowUntil = now + 4000; break;
       case "streak_saver": run.effects.streakSaver = true; break;
@@ -466,7 +463,10 @@ const popRules = (() => {
       run.effects.fakeUntil = now + 4000;
       run.effects.fakeIds = pickRandomIndices(cellCount, 3, [...targets, ...pushed]);
     }
-    if (skill === "shuffle") return { targets: pickRandomIndices(cellCount, targets.length, pushed) };
+    if (skill === "shuffle") {
+      run.effects.shuffleUntil = now + 900;
+      return { targets: pickRandomIndices(cellCount, targets.length, pushed) };
+    }
     return {};
   }
 

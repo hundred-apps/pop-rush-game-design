@@ -4,6 +4,7 @@ const multiplayer = (() => {
   let request;
   let reconnect;
   let state;
+  let stateReceivedAt = 0;
   let connected = false;
   const profileId = (() => {
     const key = "pop-rush-online-profile";
@@ -89,10 +90,11 @@ const multiplayer = (() => {
           character: popRules.players[selectedCharacterSeat()].character,
           cosmetics: popPanels.getLobbyCosmetics(),
           gameMode: document.querySelector("#online-queue-mode").value,
-          modeLevel: Number(document.querySelector("#online-queue-level").value), xp: popPanels.getXp() });
+          modeLevel: Number(document.querySelector("#online-queue-level").value) || 1, xp: popPanels.getXp() });
       } else if (message.type === "state") {
         connected = true;
         state = message;
+        stateReceivedAt = performance.now();
         request = { mode: state.mode, code: state.code, token: state.token };
         saveSession(request);
         api.onState?.(state);
@@ -135,6 +137,7 @@ const multiplayer = (() => {
     }
     connected = false;
     state = null;
+    stateReceivedAt = 0;
     request = null;
     saveSession(null);
   }
@@ -162,6 +165,7 @@ const multiplayer = (() => {
       }
     },
     get state() { return state; },
+    get stateReceivedAt() { return stateReceivedAt; },
     get connected() { return connected; },
   };
   return api;
