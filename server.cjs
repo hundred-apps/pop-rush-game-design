@@ -99,19 +99,47 @@ const server = createServer(async (request, response) => {
       response.writeHead(404).end();
       return;
     }
-    response.writeHead(200, {
+    const headers = {
       "Content-Type": type,
       "Content-Length": info.size,
       "Cache-Control": parts.length === 1 ? "no-cache" : "public, max-age=3600",
       "X-Content-Type-Options": "nosniff",
-    });
-    if (request.method === "HEAD") response.end();
-    else createReadStream(file).on("error", () => response.destroy()).pipe(response);
+    };
+    const isAudio = type === mime.mp3;
+    if (isAudio) headers["Accept-Ranges"] = "bytes";
+    const range = isAudio && request.method === "GET" && !request.headers["if-range"]
+      ? parseAudioRange(request.headers.range, info.size) : null;
+
+    if (range === false) {
+      response.writeHead(416, { "Content-Range": `bytes */${info.size}`, "Accept-Ranges": "bytes" }).end();
+      return;
+    }
+    if (range) {
+      headers["Content-Range"] = `bytes ${range.start}-${range.end}/${info.size}`;
+      headers["Content-Length"] = range.end - range.start + 1;
+    }
+    response.writeHead(range ? 206 : 200, headers);
+    if (request.method === "HEAD") {
+      response.end();
+      return;
+    }
+    const stream = createReadStream(file, range ?? {});
+    response.once("close", () => stream.destroy());
+    stream.on("error", () => response.destroy()).pipe(response);
   } catch {
     if (!response.headersSent) response.writeHead(404);
     response.end();
   }
 });
+
+function parseAudioRange(header, size) {
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(header ?? "");
+  if (!match || (!match[1] && !match[2])) return null;
+  const [, first, last] = match;
+  const start = first ? Number(first) : Math.max(0, size - Number(last));
+  const end = first && last ? Math.min(size - 1, Number(last)) : size - 1;
+  return start <= end ? { start, end } : false;
+}
 
 function openStream(response) {
   const channel = randomUUID();

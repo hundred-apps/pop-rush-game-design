@@ -8,6 +8,31 @@
     />
     <meta name="theme-color" content="#342271" />
     <title>Pop Rush</title>
+    <script>
+      (() => {
+        const backsound = new Audio();
+        backsound.loop = true;
+        backsound.preload = "auto";
+
+        function playBacksound() {
+          if (backsound.paused) backsound.play().catch(() => {});
+        }
+
+        function syncBacksound() {
+          const inGameplay = location.hash === "#gameplay";
+          const track = inGameplay ? "sounds/backsound-gameplay.mp3" : "sounds/backsound-poprush-2.mp3";
+          backsound.volume = inGameplay ? 0.16 : 0.25;
+          if (backsound.getAttribute("src") !== track) backsound.src = track;
+          playBacksound();
+        }
+
+        for (const type of ["pointerup", "touchend", "click", "keydown"]) {
+          document.addEventListener(type, playBacksound, { capture: true, passive: true });
+        }
+        window.addEventListener("hashchange", syncBacksound);
+        syncBacksound();
+      })();
+    </script>
     <link rel="stylesheet" href="tailwind.css" />
     <link rel="stylesheet" href="styles.css?v=10" />
     <link rel="stylesheet" href="gameplay.css?v=65" />
@@ -16,7 +41,7 @@
     <script src="gameplay.js?v=39" defer></script>
     <script src="multiplayer.js?v=7" defer></script>
     <script src="panels.js?v=16" defer></script>
-    <script src="app.js?v=31" defer></script>
+    <script src="app.js?v=33" defer></script>
   </head>
   <body>
     <div class="startup-loader" id="startup-loader" role="status">
@@ -30,13 +55,6 @@
       <div class="startup-loader-track" aria-hidden="true"></div>
       <span>Loading Pop Rush…</span>
     </div>
-    <audio
-      id="game-backsound"
-      src="sounds/backsound-poprush-2.mp3"
-      preload="auto"
-      loop
-      hidden
-    ></audio>
     <main
       class="showcase mx-auto flex items-center justify-center"
       data-view="home"

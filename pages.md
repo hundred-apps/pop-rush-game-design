@@ -120,7 +120,7 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble target, menyeles
   - Stage Badge, Timer, Player Cards, Bubble Matte Soft, Lives Counter, Coin Balance, Energy, Skill Cards, dan POP IT! Button.
   - Saat waktu habis, sesi berganti otomatis dan sisa target dikenai penalti. Pemain juga dapat menekan **POP IT!** untuk langsung lanjut. Setelah level selesai, tombol **Next Level** tersedia di hasil Solo atau VS Bot.
 - **Background** — Arena biru-ungu gelap. [Panduan visual Gameplay](game-art.md#gameplay)
-- **Music** — Backsound Pop Rush. [Music](#music)
+- **Music** — Backsound gameplay instrumental dari ElevenLabs. [Music](#music)
 
 <a id="gameplay"></a>
 
@@ -135,7 +135,7 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble target, menyeles
   - Stage Badge, Timer, Back Button, Player Cards, Bubble Matte Soft, POP IT! Button, Penalty Banner, Lives Counter, Coin Balance, dan Skill Cards.
   - Server menyelaraskan mode pilihan Host (**Classic**, **Memory**, **Rush**, **Sequence**, **Color Hunt**, **Frenzy**), waktu, penalti, skor, dan hasil. Saat koneksi terputus, tab mencoba menyambung kembali.
 - **Background** — Arena biru-ungu gelap. [Aset Gameplay](pages/gameplay/manifest.json)
-- **Music** — Backsound Pop Rush. [Music](#music) Efek suara tercantum di bagian [Sound Effects](#sound-effects).
+- **Music** — Backsound gameplay instrumental dari ElevenLabs. [Music](#music) Efek suara tercantum di bagian [Sound Effects](#sound-effects).
 
 #### **Waiting Room Quick Match**
 
@@ -175,7 +175,7 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble target, menyeles
   - Result Ribbon, Podium, Ranking List, Personal Stats, Play Again Button, dan Back to Home Button.
   - Layar hasil muncul saat level selesai, nyawa habis, atau sesi terakhir selesai. Di multiplayer, hasil muncul setelah semua pemain menyelesaikan level atau kehabisan nyawa. **Play Again** mengulang Quick Match atau kembali ke lobby online. **Back to Home** membuka Home dan keluar dari ruang.
 - **Background** — Panggung biru-ungu dengan konfeti. [Aset Match Result](pages/match_results/manifest.json)
-- **Music** — Backsound Pop Rush. [Music](#music)
+- **Music** — Trek gameplay berlanjut saat hasil terbuka dan berganti saat kembali ke menu. [Music](#music)
 
 ### Menus
 
@@ -221,7 +221,9 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble target, menyeles
 
 ### Music
 
-Backsound otomatis mulai saat halaman dibuka jika browser mengizinkan autoplay bersuara. Jika diblokir, backsound mulai pada ketukan pertama. Musik berulang dan terus berjalan saat pemain berpindah layar. Efek ketukan, penalti, dan pergantian stage tetap diputar saat dibutuhkan. [Backsound Pop Rush](sounds/backsound-poprush.mp3)
+Backsound Home tetap berputar saat pemain berpindah di antara menu dan lobby. Saat Gameplay terbuka, game beralih ke trek instrumental 32 detik dari ElevenLabs Music v2 dan mengulangnya selama pemain berada di layar tersebut. [Backsound Home](sounds/backsound-poprush-2.mp3) · [Backsound Gameplay](sounds/backsound-gameplay.mp3)
+
+Game mencoba memulai backsound sebelum aset layar selesai dimuat. Jika browser memblokir autoplay bersuara, pemutaran dicoba lagi pada interaksi pertama, termasuk saat layar loading masih terlihat. Volume gameplay lebih rendah agar efek pop dan peringatan terdengar jelas.
 
 ### Sound Effects
 

@@ -1,17 +1,3 @@
-const backsound = document.querySelector("#game-backsound");
-backsound.volume = 0.25;
-
-function startBacksound() {
-  backsound.play().then(() => {
-    document.removeEventListener("click", startBacksound, true);
-  }).catch(() => {
-    // A later interaction can retry if the browser blocks playback.
-  });
-}
-
-document.addEventListener("click", startBacksound, true);
-startBacksound();
-
 const showcase = document.querySelector(".showcase");
 const dialog = document.querySelector("#game-dialog");
 const dialogTitle = document.querySelector("#dialog-title");
