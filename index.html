@@ -9,16 +9,21 @@
     <meta name="theme-color" content="#342271" />
     <title>Pop Rush</title>
     <link rel="stylesheet" href="tailwind.css" />
-    <link rel="stylesheet" href="styles.css?v=9" />
+    <link rel="stylesheet" href="styles.css?v=10" />
     <link rel="stylesheet" href="gameplay.css?v=60" />
     <link rel="stylesheet" href="panels.css?v=18" />
     <script src="gameplay-rules.js?v=5" defer></script>
     <script src="gameplay.js?v=32" defer></script>
     <script src="multiplayer.js?v=5" defer></script>
     <script src="panels.js?v=12" defer></script>
-    <script src="app.js?v=23" defer></script>
+    <script src="app.js?v=24" defer></script>
   </head>
   <body>
+    <div class="startup-loader" id="startup-loader" role="status">
+      <img src="pages/home/branding/logo-hd.png" alt="" width="1448" height="1086" fetchpriority="high" />
+      <div class="startup-loader-track" aria-hidden="true"></div>
+      <span>Loading Pop Rush…</span>
+    </div>
     <audio
       id="game-backsound"
       src="sounds/backsound-poprush.mp3"
@@ -29,6 +34,8 @@
     <main
       class="showcase mx-auto flex items-center justify-center"
       data-view="home"
+      inert
+      aria-busy="true"
     >
       <section
         class="screen screen--home isolate overflow-hidden"

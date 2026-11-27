@@ -39,6 +39,7 @@ const joinWithCode = document.querySelector("#join-with-code");
 const privateRoomFeedback = document.querySelector("#private-room-feedback");
 let joiningPrivateRoom = false;
 let lastOnlineMatchId = null;
+let pendingInitialGameplay = false;
 let previewCharacterSeat = 0;
 const characterPreview = document.querySelector("#character-preview");
 const characterSelect = document.querySelector("#character-select");
@@ -178,7 +179,7 @@ function openPanel(name) {
   popPanels.open(name);
 }
 
-function renderRoute(moveFocus = false) {
+function renderRoute(moveFocus = false, prepareInitialPage = false) {
   const previousView = showcase.dataset.view;
   const isPrivate = location.hash === "#private-room";
   let view = location.hash === "#room" || isPrivate ? "room" : "home";
@@ -209,7 +210,11 @@ function renderRoute(moveFocus = false) {
       lastOnlineMatchId = null;
       renderQuickRoom(true);
     }
-  } else if (previousView !== "gameplay") {
+  } else if (prepareInitialPage) {
+    pendingInitialGameplay = true;
+    applyBoardTheme(gameplayGrid.parentElement, equippedBoard);
+  } else if (previousView !== "gameplay" || pendingInitialGameplay) {
+    pendingInitialGameplay = false;
     const session = multiplayer.loadSession();
     if (
       multiplayer.state?.mode === "private" &&
@@ -668,5 +673,60 @@ document.querySelector("#chat-form").addEventListener("submit", (event) => {
   chatInput.focus();
 });
 
-window.addEventListener("hashchange", () => renderRoute(true));
-renderRoute();
+function waitForInitialAssets() {
+  const urls = new Set();
+  const images = [];
+  for (const element of showcase.querySelectorAll(".screen, .screen *")) {
+    if (!element.getClientRects().length) continue;
+    if (element instanceof HTMLImageElement) {
+      element.loading = "eager";
+      images.push(element.decode());
+    }
+
+    for (const pseudo of [null, "::before", "::after"]) {
+      const style = getComputedStyle(element, pseudo);
+      if (pseudo && (style.content === "none" || style.content === "normal")) continue;
+      for (const value of [style.backgroundImage, style.borderImageSource]) {
+        for (const [, url] of value.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
+          urls.add(new URL(url, document.baseURI).href);
+        }
+      }
+    }
+  }
+
+  if (showcase.dataset.view === "gameplay") {
+    for (const player of popRules.players) {
+      urls.add(`pages/gameplay/player_card/${player.character}.png`);
+      urls.add(`pages/match_results/characters/${player.character}.png`);
+    }
+  }
+
+  for (const url of urls) {
+    const image = new Image();
+    image.src = url;
+    images.push(image.decode());
+  }
+  return Promise.allSettled(images);
+}
+
+async function openInitialPage() {
+  const initialHash = location.hash;
+  let timeout;
+  try {
+    renderRoute(false, true);
+    await Promise.race([
+      waitForInitialAssets(),
+      new Promise((resolve) => { timeout = setTimeout(resolve, 8000); }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+    document.querySelector("#startup-loader").hidden = true;
+    showcase.inert = false;
+    showcase.removeAttribute("aria-busy");
+    window.addEventListener("hashchange", () => renderRoute(true));
+  }
+
+  if (location.hash !== initialHash || pendingInitialGameplay) renderRoute();
+}
+
+openInitialPage();

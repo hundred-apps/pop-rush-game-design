@@ -17,6 +17,59 @@ body {
     linear-gradient(145deg, #aebdfa, #e5d7ff 56%, #b9d7fa);
 }
 
+.startup-loader {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 1rem;
+  background:
+    radial-gradient(ellipse at 50% 38%, #556fe9, transparent 52%),
+    linear-gradient(155deg, #1b3793, #24124e);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.startup-loader img {
+  width: min(64vw, 17rem);
+  height: auto;
+  filter: drop-shadow(0 0.65rem 0.85rem #150e5680);
+}
+
+.startup-loader-track {
+  width: min(45vw, 11rem);
+  height: 0.65rem;
+  overflow: hidden;
+  border: 1px solid #b9d1ff;
+  border-radius: 999px;
+  background: #171840;
+}
+
+.startup-loader-track::before {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(#fff693, #ffbe26);
+  content: "";
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .startup-loader-track::before {
+    animation: startup-loading 0.9s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes startup-loading {
+  to { transform: translateX(138%); }
+}
+
 .showcase {
   --screen-height: min(96dvh, 95vw, 790px);
   min-height: 100dvh;

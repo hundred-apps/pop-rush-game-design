@@ -8,6 +8,7 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble warna target, me
 
 #### **1. Home**
 
+- **Loading awal.** Layar pembuka menunggu aset yang tampil di halaman awal siap sebelum membuka kontrol. Jika aset belum selesai setelah 8 detik, halaman tetap dibuka.
 - **5 section dengan urutan layout**
   - **Layout row, alignment space-between.** Tiga komponen di HUD atas, yaitu Profile, Coins, dan Gems.
   - **Logo Pop Rush dan tagline.** Tombol Mail dengan ikon amplop dan badge berada di kanan atas. [Logo PNG](pages/home/branding/logo-hd.png) · [Tagline PNG](pages/home/branding/tagline-hd.png)
