@@ -1,6 +1,6 @@
 # Interface
 
-Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble warna target, menyelesaikan empat stage, dan berlomba mencapai progres tertinggi. **Quick Match** dimainkan melawan tiga bot. **Private Room** dimainkan oleh 2–4 orang lewat kode ruang.
+Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble target, menyelesaikan sesi, dan berlomba meraih skor tertinggi. **Quick Match** mendukung Solo atau 1–3 bot. **Private Room** untuk 2–4 pemain lewat kode. **Find Online Match** membuka antrean publik. **Ranked Match** membuka duel 1v1 untuk pemain mulai Level 15.
 
 ## Visual System
 
@@ -75,7 +75,7 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble warna target, me
   - Layout column dengan **Use Board** di atas Bottom Navigation. Tombol menampilkan **Equipped** untuk papan yang dipakai.
 - **Components**
   - Back Button, Board Name, Size Badge, Board Preview, Board Cards, Use Board Button, dan Bottom Navigation.
-  - Pilihan tersimpan di browser, tampil di lobby, dan dipakai pada keempat stage. Di Private Room, tiap pemain dapat memakai papan dan tata letak bubblenya sendiri (16 bubble dengan 28 target pada papan 4 × 4 dan **Rainbow Pop**, 11 bubble dengan 20 target pada **Star Pop**, serta 5 bubble dengan 12 target pada **Paw Pop**).
+  - Pilihan tersimpan di browser, tampil di lobby, dan dipakai di semua stage. Di Private Room, tiap pemain dapat memakai papan dan tata letak bubblenya sendiri (16 bubble dengan 70 target pada papan 4 × 4 dan **Rainbow Pop**, 11 bubble dengan 50 target pada **Star Pop**, serta 5 bubble dengan 30 target pada **Paw Pop**).
 - **Background** — Kota fantasi biru-ungu. [Aset bingkai](game-art.md#bingkai-board)
 - **Music** — Backsound Pop Rush. [Music](#music)
 
@@ -104,45 +104,44 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble warna target, me
 #### **5. Gameplay Single**
 
 - **4 section dengan urutan layout**
-  - Layout row di bagian atas dengan nomor stage/sesi, nama mode & papan, tombol kembali, dan timer.
-  - Layout row kartu pemain dengan potret, posisi, dan progres (persentase atau skor pada Rush/Frenzy). Quick Match berisi karakter pilihan dan tiga bot.
-  - Papan interaktif dengan indikator warna target di kanan atas. Mode Frenzy menampilkan indikator nyawa di sebelahnya. Petunjuk Memory dan pesan sementara muncul sesuai kondisi.
-  - Layout column di bagian bawah diawali meter **Pop Power**, lalu dock kapsul ungu dengan empat ikon skill (**Blast**, **Shield**, **Rush**, **Freeze**), lalu tombol **Pop Rush** di bawah dock.
-- **Mode Permainan & Pengacakan**
-  - Posisi target bubble diacak ulang setiap match dan setiap stage/sesi lewat `popRules.createClassicStages()` dan `popRules.createSessionTargets()`.
-  - Baik **Quick Match** maupun **Multiplayer PvP** berjalan beruntun melalui urutan mode (**Classic → Memory → Rush → Sequence → Color Hunt → Frenzy**): saat satu mode selesai atau waktunya habis, permainan otomatis berpindah ke mode berikutnya dengan hitung mundur `3 → 2 → 1 → PLAY!` hingga **Frenzy** berakhir:
-    1. **Classic Hunt**: 4 stage acak. Warna target diundi sekali per pertandingan dari merah, hijau, kuning, dan biru. Bubble pengecoh berwarna putih. Di Private Room, semua pemain memakai warna target yang sama.
-    2. **Memory** (Lv 1–100, 10 sesi/level): 30% target acak didahului sesi **Spill** (kedip `OFF -> ON -> OFF` bergantian) lalu ditekan saat papan `OFF`.
-    3. **Rush** (durasi **30s / 45s / 60s**): aturan Classic berulang tanpa henti hingga waktu habis untuk skor tertinggi.
-    4. **Sequence** (Lv 1–100, 10 sesi/level): mulai 50% target acak; tiap pop benar mengubah 1 bubble `OFF` acak menjadi `ON`.
-    5. **Color Hunt** (Lv 1–100, 10 sesi/level): 2 warna acak per sesi dari **Merah, Hijau, Kuning, Biru** (50% target, 50% `OFF` berbeda warna).
-    6. **Frenzy** (1 level tanpa batas waktu, 3 nyawa `♥`): mulai 50% target acak; tiap pop benar mengembalikan bubble `PUSHED` lain menjadi `OFF` dan menaikkan 1 bubble `OFF` acak menjadi `ON`.
+  - Header berisi tombol kembali, mode, level permainan, sesi saat ini, nama papan, dan timer.
+  - Baris peringkat menampilkan karakter dan skor. Quick Match mendukung Solo serta 1–3 bot.
+  - Papan menggunakan indikator warna target di kanan atas, indikator nyawa, dan petunjuk sesuai mode.
+  - Bagian bawah berisi Coins, Energy, skill yang tersedia, tombol **POP IT!**, atau indikator streak di Frenzy.
+- **Mode dan level**
+  - **Classic Hunt, Memory, Rush, Sequence, dan Color Hunt** memiliki level 1–15. Tiap level berisi 5, 7, 8, atau 9 sesi sesuai tabel. [Tabel Game Levels](game-level.md#game-levels)
+  - **Classic Hunt** menghitung durasi sesi dari rasio target × jumlah bubble × durasi per pop. Warna target dipilih sekali per pertandingan. Jumlah target dibulatkan ke bubble terdekat.
+  - **Memory** mengikuti jarak antar awal kilatan pada tabel. Timer menjawab mulai setelah Spill.
+  - **Rush** memberikan 3 detik per sesi. Target yang terlewat mengurangi poin. Mode ini tidak memakai nyawa.
+  - **Sequence** mengikuti rasio awal pada tabel. Batas waktu memakai durasi per pop × jumlah bubble papan karena target terus muncul sampai semua selesai.
+  - **Color Hunt** memakai dua warna sampai level 5 dan tiga warna mulai level 6.
+  - **Frenzy** memakai timer per pop, dari 1.200 ms pada awal permainan hingga 550 ms pada streak 200. Melewati batas waktu memicu penalti dan mengulang timer. [Tabel Frenzy](game-level.md#mode-frenzy)
 - **Components**
-  - Stage Badge, Timer, Back Button, Player Cards, Bubble Matte Soft, Pop Rush Button, Penalty Banner, Lives Counter, Pop Power Meter, dan Skill Cards.
-  - **Play** di Quick Match membuka `#gameplay`. Browser menghitung waktu dan progres bot secara lokal.
+  - Stage Badge, Timer, Player Cards, Bubble Matte Soft, Lives Counter, Coin Balance, Energy, Skill Cards, dan POP IT! Button.
+  - Saat waktu habis, sesi berganti otomatis dan sisa target dikenai penalti. Pemain juga dapat menekan **POP IT!** untuk langsung lanjut. Setelah level selesai, tombol **Next Level** tersedia di hasil Solo atau VS Bot.
 - **Background** — Arena biru-ungu gelap. [Panduan visual Gameplay](game-art.md#gameplay)
-- **Music** — Backsound Pop Rush. [Music](#music) Efek suara tercantum di bagian [Sound Effects](#sound-effects).
+- **Music** — Backsound Pop Rush. [Music](#music)
 
 <a id="gameplay"></a>
 
 #### **6. Gameplay PvP**
 
 - **4 section dengan urutan layout**
-  - Layout row header berisi stage/sesi mode, nama papan pilihan pemain, tombol kembali, dan timer bersama.
-  - Layout row kartu peserta dengan posisi dan progres/skor terkini.
-  - Papan dengan indikator warna di kanan atas. Nyawa Frenzy, petunjuk Memory, dan pesan sementara muncul sesuai kondisi.
-  - Layout column dengan meter **Pop Power**, empat ikon skill (**Blast**, **Shield**, **Rush**, **Freeze**) di dalam dock, lalu tombol **Pop Rush** di bawahnya.
+  - Layout row header berisi stage/sesi mode, nama papan pilihan pemain, tombol kembali, dan waktu pertandingan.
+  - Layout row kartu peserta dengan posisi dan skor terkini.
+  - Papan dengan indikator warna di kanan atas. Nyawa, petunjuk Memory, dan peringatan serangan muncul sesuai kondisi.
+  - Layout column dengan saldo **Coins**, Energy, maksimal tiga skill di dalam dock, dan tombol **POP IT!** di bawahnya.
 - **Components**
-  - Stage Badge, Timer, Back Button, Player Cards, Bubble Matte Soft, Pop Rush Button, Penalty Banner, Lives Counter, Pop Power Meter, dan Skill Cards.
-  - Server menyelaraskan mode pilihan Host (**Classic**, **Memory**, **Rush 30/45/60s**, **Sequence**, **Color Hunt**, **Frenzy**), waktu, penalti, skor, dan hasil. Saat koneksi terputus, tab mencoba menyambung kembali.
+  - Stage Badge, Timer, Back Button, Player Cards, Bubble Matte Soft, POP IT! Button, Penalty Banner, Lives Counter, Coin Balance, dan Skill Cards.
+  - Server menyelaraskan mode pilihan Host (**Classic**, **Memory**, **Rush**, **Sequence**, **Color Hunt**, **Frenzy**), waktu, penalti, skor, dan hasil. Saat koneksi terputus, tab mencoba menyambung kembali.
 - **Background** — Arena biru-ungu gelap. [Aset Gameplay](pages/gameplay/manifest.json)
 - **Music** — Backsound Pop Rush. [Music](#music) Efek suara tercantum di bagian [Sound Effects](#sound-effects).
 
 #### **Waiting Room Quick Match**
 
 - **Urutan layout**
-  - Header dengan tombol kembali, judul **Quick Match**, dan badge **Vs Bots**.
-  - Grid kartu karakter pilihan dan tiga lawan berstatus **Bot**.
+  - Header dengan tombol kembali, **Deck**, judul **Quick Match**, dan badge **Solo** atau **Vs Bots**.
+  - Grid kartu karakter pilihan dan hingga tiga bot. Atur jumlah bot, tingkat kesulitan, dan deck masing-masing lewat **Deck**.
   - Panel papan & pemilih 6 mode (**Classic**, **Memory**, **Rush**, **Sequence**, **Color Hunt**, **Frenzy**).
   - Area aksi dengan **Room chat**, **Ready**, dan **Play**.
 - **Components**
@@ -160,7 +159,7 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble warna target, me
   - Area aksi dengan **Room chat**, **Ready**, dan **Play**.
 - **Components**
   - Back Button, Fullscreen Button, Player Cards, Stage & Mode Panel, Room Code Button, Room Chat Button, Ready Button, dan Play Button.
-  - Host memilih mode & membagikan kode enam karakter lewat **Room code**. Setelah sedikitnya dua pemain terhubung dan semua siap, host menekan **Play**. Pesan chat tersimpan di sesi halaman.
+  - Di Private Room, host membagikan kode enam karakter dan menekan **Play** setelah minimal dua pemain siap. Antrean publik mengisi kursi yang kosong dengan bot setelah 12 detik. Ranked menunggu dua pemain dengan tier yang sama. Setelah peserta lengkap, waktu persiapan maksimal 15 detik.
 - **Background** — Arena ungu bercahaya. [Aset Waiting Room](pages/Waiting_Room/manifest.json)
 - **Music** — Backsound Pop Rush. [Music](#music)
 
@@ -169,12 +168,12 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble warna target, me
 - **5 section dengan urutan layout**
   - Lapisan ambient bercahaya parallax di belakang lembaran hasil (`results-ambient`), diikuti pita judul **Match Result** dan mahkota di atas konfeti.
   - Podium 3D dengan posisi perak di kiri, emas di tengah, dan perunggu di kanan. Maksimal tiga karakter tampil dengan efek aura bercahaya pada juara 1.
-  - Daftar peringkat kaca buram (*frosted glassmorphism* & *spatial 3D tilt*) dengan nomor, potret, nama, progres akhir, dan animasi masuk bertahap (*staggered*). Baris juara diberi aksen emas.
-  - Panel tiga kartu statistik vertikal bertema kaca buram (**Pops**, **Progress**, dan **Rank**) agar angka skor tetap lega dan tidak terhimpit.
-  - Baris tombol simetris sejajar penuh **Play Again** dan **Back to Home** (serta **Next Mode** penuh di atasnya saat mode maraton) dengan ruang padding pill yang rapi.
+  - Daftar peringkat kaca buram (*frosted glassmorphism* & *spatial 3D tilt*) dengan nomor, potret, nama, skor akhir, dan animasi masuk bertahap (*staggered*). Baris juara diberi aksen emas.
+  - Panel tiga kartu statistik vertikal bertema kaca buram (**Pops**, **Score**, dan **Rank**) agar angka skor tetap lega dan tidak terhimpit.
+  - Baris tombol simetris sejajar penuh **Play Again** dan **Back to Home** (serta **Next Level** setelah level selesai) dengan ruang padding pill yang rapi.
 - **Components**
   - Result Ribbon, Podium, Ranking List, Personal Stats, Play Again Button, dan Back to Home Button.
-  - Layar hasil muncul saat seseorang menyelesaikan semua target atau waktu habis. **Play Again** langsung mengulang Quick Match atau kembali ke lobby Private Room untuk bersiap. **Back to Home** membuka Home dan keluar dari ruang.
+  - Layar hasil muncul saat level selesai, nyawa habis, atau sesi terakhir selesai. Di multiplayer, hasil muncul setelah semua pemain menyelesaikan level atau kehabisan nyawa. **Play Again** mengulang Quick Match atau kembali ke lobby online. **Back to Home** membuka Home dan keluar dari ruang.
 - **Background** — Panggung biru-ungu dengan konfeti. [Aset Match Result](pages/match_results/manifest.json)
 - **Music** — Backsound Pop Rush. [Music](#music)
 
@@ -183,31 +182,40 @@ Pop Rush adalah game web kasual untuk HP. Pemain menekan bubble warna target, me
 | Lokasi | Menu | Perilaku |
 | --- | --- | --- |
 | Navigasi bawah | Home, Character, Board, Inventory | Home, Character, dan Board menuju layar masing-masing. Inventory membuka dialog **Items**, **Boards**, dan **Currency** beserta stok power-up. |
-| Pintasan Home | Events, Missions, Shop, Rewards | Membuka dialog bertema Pop Rush dengan klaim hadiah, progres misi, toko power-up/bundel/board, dan rentetan login 7 hari. |
+| Pintasan Home | Events, Missions, Shop, Rewards, Deck | Membuka dialog bertema Pop Rush dengan klaim hadiah, progres misi, toko power-up/bundel/board, dan rentetan login 7 hari. |
 | HUD Home | Player profile, Coins, Gems, Mail | Membuka dialog **Profile** (stat, XP, ubah nickname), **Add Points**, **Add Gems**, dan **Pesan & Mail** (lampiran hadiah yang tersinkron ke badge HUD). |
-| Home aksi | Ranking | Membuka dialog **Ranking** dengan podium 3 besar dan daftar peringkat **Global** / **Friends**. |
-| Lobby | Stage x4 | Nama papan yang dipakai pemain. |
+| Home aksi | Ranking | Membuka tab Records, Ranked Season, dan Frenzy Survival Leaderboard. |
+| Lobby | Stage and mode | Nama papan yang dipakai pemain. |
 
 ### Components
 
 | Komponen | Tampilan | Aksi |
 | --- | --- | --- |
-| [Quick Match](pages/home/button/quick_match.png) | Pil emas dengan ikon Play | Buka lobby bot. |
-| [Private Room](pages/home/button/private_room.png) | Pil biru di bawah Quick Match | Buka dialog buat atau masuk ruang. |
+| [Quick Match](pages/home/button/quick_match.png) | Pil emas dengan ikon Play | Buka lobby Solo atau VS Bot. |
+| [Private Room](pages/home/button/private_room.png) | Pil biru di bawah Quick Match | Buka pilihan buat ruang, masuk dengan kode, atau cari pertandingan publik. |
 | [Ready](pages/Waiting_Room/button/ready.png) | Pil emas di dasar lobby | Ubah status siap pemain. |
 | Room code | Pil biru dengan kode terlihat | Tampilkan kode ruang yang bisa disalin. |
-| Pop Rush | Tombol pil emas di bawah dock skill | Lanjutkan setelah target habis. Menekan saat target masih tersisa memicu penalti. |
+| POP IT! | Tombol pil emas di bawah dock skill | Lanjutkan setelah target habis. Menekan saat target masih tersisa memicu penalti. |
 | Kartu pemain | Potret PNG, nama, dan status atau progres dinamis | Tampilkan identitas, kesiapan, atau posisi pemain sesuai layar. |
 | Bubble Matte Soft | Kubah silikon bulat | Target berwarna mendelep pada ketukan yang valid. |
 
 ## Control System
 
-- Pertandingan berlangsung **45 detik** dalam **4 stage**. Papan 4 × 4 (**Aqua Wave**, **Sapphire Blue**, **Royal Gem**, **Candy Pink**, dan **Rainbow Pop**) berisi **7 target berwarna** dan **9 bubble putih** per stage (total **28 target**); **Star Pop** (11 bubble) berisi **5 target berwarna** dan **6 bubble putih** per stage (total **20 target**); dan **Paw Pop** (5 bubble) berisi **3 target berwarna** dan **2 bubble putih** per stage (total **12 target**). Kecepatan bot dan progres peringkat disesuaikan dengan jumlah target masing-masing papan.
-- Ketuk di mana saja dalam sel untuk menekan bubble. Satu sentuhan dihitung sekali. Keyboard memakai Tab untuk fokus serta Enter atau Space untuk mengaktifkan tombol.
-- Target yang berhasil ditekan tetap cekung sampai papan direset. Menekan bubble putih atau target yang sudah cekung mengunci papan pemain selama **1 detik**. Waktu dan progres lawan terus berjalan.
-- Tombol **Pop Rush** aktif selama ronde. Menekannya saat masih ada target memicu penalti yang sama dengan salah menekan bubble. Papan biasa terkunci selama 1 detik. Di Frenzy, pemain juga kehilangan 1 nyawa dan papan terkunci selama 380 ms jika masih ada nyawa. Setelah target habis dan ada stage berikutnya, tekan **Pop Rush** atau goyangkan HP pada browser yang mendukung sensor lewat HTTPS. Gunakan **Enable shake** saat izin diperlukan.
-- Setelah target stage 4 habis, hasil langsung tampil. Jika waktu habis, urutan ditentukan oleh jumlah target yang selesai dan waktu pencapaian saat progres sama.
-- Private Room menggunakan server Pop Rush di port **8000** dengan HTTP dan Server-Sent Events. Jalankan `node server.cjs` atau `npm start`, lalu gunakan alamat IP komputer server dari perangkat di Wi-Fi yang sama.
+- Ketuk target untuk mendapat 10 poin dan 20 Energy dasar. Salah tekan mengurangi 5 poin serta satu nyawa. Skor minimum 0. Rush memakai timer dan penalti skor.
+- Bubble dari state ON maupun OFF tetap cekung setelah ditekan. Ketukan ulang pada bubble yang sudah cekung diabaikan sampai reset.
+- **POP IT!** mengakhiri sesi. Jika masih ada target, setiap target yang tertinggal dihitung sebagai satu penalti. Gunakan Tap, Swipe / Pinch, atau Shake / Tilt dari pengaturan Deck. Mode sensor memerlukan browser dan izin perangkat yang sesuai.
+- Skill memerlukan 100 Energy serta biaya 15–50 Coins sesuai kategori. Jika Coin kurang, pemain dapat menukar 5 Gems menjadi 250 Coins dan mengaktifkan skill. Deck lobby menawarkan paket 10 Gems jika biaya satu rotasi melebihi saldo.
+- Serangan menampilkan peringatan selama 1,5 detik. Pemain dapat memakai Shield saat peringatan atau Cleanse setelah efek aktif. Grace period serangan berturut-turut berlangsung 2,5 detik.
+- Solo dan VS Bot berjalan di browser. Hadiah Coin dan XP VS Bot sebesar 50% dari standar. Empat kesulitan bot memakai rentang jeda, akurasi, dan pola deck dari tabel. [Tabel Bot Level](game-level.md#bot-level) Private Room dan antrean publik memakai HTTP serta Server-Sent Events. Jalankan `node server.cjs` untuk melayani game dan multiplayer dari port **8000**.
+- Ranking menampilkan rekor lokal per mode serta leaderboard Frenzy dari pertandingan online yang selesai. Minggu dimulai Senin UTC. Server menyimpan hasil Frenzy, RP, dan progres event di `.poprush-data` atau lokasi yang diatur melalui `POPRUSH_DATA_DIR`.
+
+## Player Levels, Missions & Events
+
+- Profil menampilkan XP kumulatif, level akun, hadiah, dan fitur tiap milestone. Level akun membuka mode, skill, serta jumlah slot Deck. Ambang untuk level di antara milestone dihitung secara linear.
+- **Missions** menampilkan Daily, Weekly, dan Achievements. Daily direset pada pukul 00.00 UTC dan Weekly pada Senin pukul 00.00 UTC. Pop, penggunaan skill, kemenangan online, dan sesi sempurna dibukukan saat hasil pertandingan.
+- **Events** menampilkan Weekend Frenzy, Global Pop Milestone, Ranked Season, dan Theme Showcase. Rotasi 7, 14, dan 30 hari dimulai 23 November 2026 pukul 00.00 UTC. Theme Showcase memberi 1 Event Token per sesi selesai.
+- Ranked memberi +25 RP untuk menang dan −15 RP untuk kalah dengan batas minimum 0. Tier baru tercapai pada 100, 250, 450, 700, dan 1.000 RP. Hadiah akhir musim dimulai dari 300 Coins di Bronze, lalu bertambah 250 Coins dan 5 Gems untuk setiap kenaikan tier.
+- **Inventory** memakai satu kartu Shield untuk naik ke Level 2 dengan durasi proteksi 3,5 detik. **Shop → Boosters** menyediakan Double Score Ticket (250 Coins), Shield Start Ticket (180 Coins), dan XP Booster (15 Gems). Deck memakai satu tiket per pertandingan. XP Booster memberi tambahan 50% XP selama satu jam dari waktu aktivasi. [Tabel hadiah dan progresi](game-level.md#rewards)
 
 ## Audio
 
@@ -221,7 +229,8 @@ Backsound otomatis mulai saat halaman dibuka jika browser mengizinkan autoplay b
 | --- | --- | --- |
 | Target berwarna berhasil ditekan | [gun-shoot.mp3](sounds/gun-shoot.mp3) | Suara singkat dengan getaran **18 ms** pada perangkat yang mendukungnya. |
 | Ketukan salah | [incorrect.mp3](sounds/incorrect.mp3) | Suara kesalahan disertai kunci papan dan sorotan merah. |
-| Pop Rush | [reload-sound.mp3](sounds/reload-sound.mp3) | Suara saat bubble naik dan pola stage berikutnya muncul. |
+| Pakai skill | [coin-drop.mp3](sounds/coin-drop.mp3) | Bunyi koin saat pemakaian skill berhasil dan saldo berkurang. |
+| POP IT! | [reload-sound.mp3](sounds/reload-sound.mp3) | Suara saat bubble naik dan pola stage berikutnya muncul. |
 
 Jalankan `node server.cjs` atau `npm start` untuk membuka server di port 8000. Pemain di Wi-Fi yang sama dapat membuka alamat IP komputer yang menjalankan server.
 

@@ -13,6 +13,7 @@ function equipBoard(board) {
 
 function applyBoardTheme(element, board) {
   element.dataset.boardTheme = board.id;
+  element.dataset.boardFinish = popPanels.getCosmetic("boardFinish") ?? "";
 }
 
 function applyBubbleLayout(element, spec) {
@@ -33,8 +34,12 @@ function applyBubbleLayout(element, spec) {
 const modeConfigKey = "pop-rush-mode-config";
 const defaultModeConfig = {
   mode: "classic",
-  rushSeconds: 45,
-  levels: { memory: 1, sequence: 1, color_hunt: 1 },
+  soloSkills: [...popRules.defaultLoadout],
+  lobbySkills: [...popRules.defaultLoadout],
+  botCount: 3,
+  botSettings: [],
+  resetControl: "tap",
+  levels: { classic: 1, memory: 1, rush: 1, sequence: 1, color_hunt: 1 },
 };
 
 function loadModeConfig() {
@@ -43,12 +48,13 @@ function loadModeConfig() {
     if (!saved || typeof saved !== "object") return structuredClone(defaultModeConfig);
     return {
       mode: popRules.modeOrder.includes(saved.mode) ? saved.mode : "classic",
-      rushSeconds: [30, 45, 60].includes(saved.rushSeconds) ? saved.rushSeconds : 45,
-      levels: {
-        memory: Math.max(1, Math.min(100, Number(saved.levels?.memory) || 1)),
-        sequence: Math.max(1, Math.min(100, Number(saved.levels?.sequence) || 1)),
-        color_hunt: Math.max(1, Math.min(100, Number(saved.levels?.color_hunt) || 1)),
-      },
+      soloSkills: popRules.normalizeLoadout(saved.soloSkills, false),
+      lobbySkills: popRules.normalizeLoadout(saved.lobbySkills, true),
+      botCount: Number.isInteger(saved.botCount) ? Math.max(0, Math.min(3, saved.botCount)) : 3,
+      botSettings: Array.isArray(saved.botSettings) ? saved.botSettings : [],
+      resetControl: ["tap", "swipe", "motion"].includes(saved.resetControl) ? saved.resetControl : "tap",
+      levels: Object.fromEntries(Object.keys(defaultModeConfig.levels).map((mode) =>
+        [mode, popRules.normalizeGameLevel(mode, saved.levels?.[mode])])),
     };
   } catch {
     return structuredClone(defaultModeConfig);
@@ -56,20 +62,30 @@ function loadModeConfig() {
 }
 
 const modeConfig = loadModeConfig();
+let lobbySkills = [...modeConfig.lobbySkills];
+
+function getDeckSkills(inLobby) {
+  return popRules.allowedPlayerLoadout(inLobby ? lobbySkills : modeConfig.soloSkills, inLobby, popPanels.getXp());
+}
+
+function setDeckSkills(ids, inLobby, remember = false) {
+  if (inLobby) {
+    lobbySkills = popRules.allowedPlayerLoadout(ids, true, popPanels.getXp());
+    if (!remember) return;
+    modeConfig.lobbySkills = [...lobbySkills];
+  } else modeConfig.soloSkills = popRules.allowedPlayerLoadout(ids, false, popPanels.getXp());
+  saveModeConfig();
+}
 function saveModeConfig() {
   try { localStorage.setItem(modeConfigKey, JSON.stringify(modeConfig)); } catch {}
 }
 
-function getSelectedGameMode() { return modeConfig.mode; }
-function setSelectedGameMode(modeId) {
-  if (!popRules.modeOrder.includes(modeId)) return;
-  modeConfig.mode = modeId;
-  saveModeConfig();
+function getSelectedGameMode() {
+  return popPanels.modeUnlocked(modeConfig.mode) ? modeConfig.mode : "classic";
 }
-function getSelectedRushSeconds() { return modeConfig.rushSeconds; }
-function setSelectedRushSeconds(sec) {
-  if (![30, 45, 60].includes(sec)) return;
-  modeConfig.rushSeconds = sec;
+function setSelectedGameMode(modeId) {
+  if (!popRules.modeOrder.includes(modeId) || !popPanels.modeUnlocked(modeId)) return;
+  modeConfig.mode = modeId;
   saveModeConfig();
 }
 function getModeLevel(modeId) {
@@ -77,11 +93,11 @@ function getModeLevel(modeId) {
 }
 function setModeLevel(modeId, lv) {
   if (!(modeId in modeConfig.levels)) return;
-  modeConfig.levels[modeId] = Math.max(1, Math.min(100, Number(lv) || 1));
+  modeConfig.levels[modeId] = popRules.normalizeGameLevel(modeId, lv);
   saveModeConfig();
 }
 
-const { players: gameplayPlayers, matchDurationMs, wrongPopLockMs, frenzyMaxLives } = popRules;
+const { players: gameplayPlayers, frenzyMaxLives, skillDefinitions } = popRules;
 const shakeThreshold = 11;
 const shakeMinIntervalMs = 55;
 const shakeMaxIntervalMs = 500;
@@ -105,8 +121,13 @@ const gameplayOnlineStatus = document.querySelector("#gameplay-online-status");
 const gameplayGrid = document.querySelector("#gameplay-bubbles");
 const popRushActions = document.querySelector("#gameplay-rush-actions");
 const popRushStatusText = document.querySelector("#gameplay-rush-status span");
-const powerValue = document.querySelector("#gameplay-power-value");
-const powerTrack = document.querySelector("#gameplay-power-track");
+const skillDock = document.querySelector(".gameplay-abilities");
+const energyLabel = document.querySelector("#gameplay-energy");
+const topUpOffer = document.querySelector("#gameplay-top-up");
+const frenzyMarker = document.querySelector("#gameplay-frenzy-marker");
+const streakLabel = document.querySelector("#gameplay-streak");
+const warningLabel = document.querySelector("#gameplay-attack-warning");
+let skillButtons = [];
 const popRushButton = document.querySelector("#gameplay-pop-rush");
 const popRushSlot = popRushButton.parentElement;
 const popRushLabel = document.querySelector("#gameplay-rush-label");
@@ -161,6 +182,7 @@ function prepareGameplaySound(path, start, volume, voiceCount) {
 const popSound = prepareGameplaySound("sounds/gun-shoot.mp3", 0, 0.32, 8);
 const reloadSound = prepareGameplaySound("sounds/reload-sound.mp3", 0.026, 0.5, 2);
 const incorrectSound = prepareGameplaySound("sounds/incorrect.mp3", 0, 0.5, 1);
+const coinSound = prepareGameplaySound("sounds/coin-drop.mp3", 0.04, 0.65, 2);
 
 const bubbleRiseFrames = [
   { transform: "scale(0.9)" },
@@ -171,25 +193,27 @@ const bubbleRiseFrames = [
 let gameplayStartedAt = null;
 let gameplayFrame = null;
 let stageIndex = 0;
-let stageCleared = 0;
+let botRuntimes = [];
+let lastWarning = null;
 let wrongPopTimer = null;
 let onlineGameplay = null;
+let frenzyRivals = [];
+let previousFlowCell = null;
 
 // Extended multi-mode state
 let activeMode = "classic";
 let activeModeLevel = 1;
-let activeSessionIndex = 0;
-let activeStages = [];
+let sessionDeadline = null;
+let decoyColors = {};
+let frenzyAnnouncementUntil = 0;
 let activeTargets = new Set();
 let activeSpillOrder = [];
 let spillActive = false;
 let spillTimers = [];
 let activeColorPair = null;
-let frenzyLives = frenzyMaxLives;
-let rushDurationMs = matchDurationMs;
-let humanScore = 0;
+let run = popRules.createRunState("classic");
+let completedLevel = false;
 let humanTotalCleared = 0;
-let transitionToNextMode = null;
 let nextModeHandler = null;
 let countdownActive = false;
 let countdownTimers = [];
@@ -239,40 +263,39 @@ function selectedCharacterSeat() {
   }
 }
 
+function setGameplayIdentity(player, { name, character, level }) {
+  if (!name || (player.name === name && player.character === character && player.level === level)) return;
+  Object.assign(player, { name, character, level });
+  player.card.title = `${name} · Lv.${level}`;
+  player.card.dataset.character = character;
+  const portrait = player.card.querySelector(".gameplay-portrait");
+  portrait.src = `pages/gameplay/player_card/${character}.png`;
+  portrait.alt = `${character} portrait`;
+  player.card.querySelector(".gameplay-leader-portrait").src = `pages/match_results/characters/${character}.png`;
+  player.card.querySelector(".gameplay-name").textContent = name;
+  player.card.querySelector(".gameplay-level").textContent = `Level ${level}`;
+}
+
 function saveSelectedCharacter(seat) {
   temporaryCharacterSeat = seat;
   try { localStorage.setItem("pop-rush-character", gameplayPlayers[seat].character); } catch {}
 }
 
-function progressPercent(cleared, total) {
-  if (!total) return 0;
-  return Math.min(100, Math.floor(cleared * 100 / total));
-}
-
-function isScoreMode(mode) {
-  return mode === "rush" || mode === "frenzy";
-}
-
 function renderGameplayScores() {
   const players = onlineGameplay
     ? onlineGameplay.state.scores.map(({ seat }) => gameplayPlayerStates[seat])
-    : gameplayPlayerStates;
+    : [gameplayHuman, ...gameplayOpponents];
   for (const player of gameplayPlayerStates) {
     if (!players.includes(player)) player.card.remove();
   }
-  const scoreMode = isScoreMode(activeMode);
-  const ranked = [...players].sort((a, b) => {
-    if (scoreMode) return b.score - a.score || b.cleared - a.cleared || a.reachedAt - b.reachedAt;
-    return (b.cleared * a.targetCount) - (a.cleared * b.targetCount) || a.reachedAt - b.reachedAt;
-  });
+  const ranked = [...players].sort((a, b) => Number(Boolean(a.forfeit)) - Number(Boolean(b.forfeit)) ||
+    b.score - a.score || b.cleared - a.cleared || a.reachedAt - b.reachedAt);
   ranked.forEach((player, index) => {
     const isLeader = index === 0;
     player.card.classList.toggle("gameplay-score--leader", isLeader);
     player.rankLabel.textContent = rankLabels[index];
     player.crown.hidden = !isLeader;
-    player.percent.textContent = scoreMode
-      ? player.score.toLocaleString("en-US")
-      : `${progressPercent(player.cleared, player.targetCount)}%`;
+    player.percent.textContent = player.score.toLocaleString("en-US");
     if (gameplayScores.children[index] !== player.card) {
       gameplayScores.insertBefore(player.card, gameplayScores.children[index] ?? null);
     }
@@ -280,13 +303,7 @@ function renderGameplayScores() {
   return ranked;
 }
 
-function renderGameplayTime(elapsed) {
-  let displayMs = elapsed;
-  if (activeMode === "classic") {
-    displayMs = Math.max(0, matchDurationMs - elapsed);
-  } else if (activeMode === "rush") {
-    displayMs = Math.max(0, rushDurationMs - elapsed);
-  }
+function renderGameplayTime(displayMs) {
   const tenths = Math.max(0, Math.ceil(displayMs / 100));
   const minutes = String(Math.floor(tenths / 600)).padStart(2, "0");
   const seconds = String(Math.floor(tenths / 10) % 60).padStart(2, "0");
@@ -294,28 +311,206 @@ function renderGameplayTime(elapsed) {
   if (gameplayTime.textContent !== text) gameplayTime.textContent = text;
 }
 
-function renderPopPower() {
-  const targetCount = activeMode === "sequence" ? activeBoard.cellCount : stageCleared + activeTargets.size;
-  const percent = activeMode === "frenzy"
-    ? (stageCleared === 0 ? 0 : ((stageCleared - 1) % 10 + 1) * 10)
-    : progressPercent(stageCleared, targetCount);
-  powerValue.textContent = `${percent}%`;
-  powerTrack.setAttribute("aria-valuenow", percent);
-  powerTrack.style.setProperty("--power", `${percent}%`);
+function renderSkillDock(ids) {
+  skillDock.replaceChildren();
+  skillButtons = ids.map((id) => {
+    const skill = skillDefinitions[id];
+    const slot = document.createElement("li");
+    slot.className = "gameplay-ability";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.gameplaySkill = id;
+    button.setAttribute("aria-label", `${skill.name}, ${skill.coins} coins`);
+    if (skill.icon) {
+      const icon = new Image();
+      icon.src = `pages/gameplay/dock/${skill.icon}`;
+      icon.alt = "";
+      button.append(icon);
+    } else {
+      const icon = document.createElement("span");
+      icon.className = "gameplay-skill-symbol";
+      icon.textContent = skill.symbol;
+      icon.setAttribute("aria-hidden", "true");
+      button.append(icon);
+    }
+    const price = document.createElement("span");
+    price.className = "gameplay-skill-price";
+    price.textContent = skill.coins;
+    price.setAttribute("aria-hidden", "true");
+    const name = document.createElement("span");
+    name.className = "gameplay-skill-name";
+    name.textContent = skill.name;
+    button.append(name, price);
+    slot.append(button);
+    skillDock.append(slot);
+    button.addEventListener("click", useGameplaySkill);
+    return button;
+  });
+  refreshGameplaySkills(false);
 }
 
-function renderFrenzyLives() {
-  if (activeMode !== "frenzy") {
+function refreshGameplaySkills(playing, now = performance.now()) {
+  const time = onlineGameplay ? onlineGameplayClock(now) : now;
+  const active = (playing || run.effects.paralyzeUntil > time) && gameplayStartedAt !== null &&
+    !countdownActive && !spillActive && !onlineGameplay?.pendingSkill && !onlineGameplay?.pendingReset;
+  const rivals = onlineGameplay
+    ? onlineGameplay.state.scores.some((p) => p.seat !== onlineGameplay.state.you && p.alive)
+    : botRuntimes.length > 0;
+  for (const button of skillButtons) {
+    const skill = button.dataset.gameplaySkill;
+    const blocked = run.effects.paralyzeUntil > time && skill !== "cleanse" && skill !== "shield";
+    const available = active && !blocked && popRules.canCastSkill(run, skill, time, {
+      mode: activeMode, targets: activeTargets.size, rivals,
+    });
+    const affordable = popPanels.getCoins() >= skillDefinitions[skill].coins;
+    const disabled = !available;
+    if (button.disabled !== disabled) button.disabled = disabled;
+    button.toggleAttribute("data-insufficient", available && !affordable);
+  }
+  const energyText = `Energy ${run.energy}%`;
+  if (energyLabel.textContent !== energyText) energyLabel.textContent = energyText;
+  const best = Math.max(run.bestStreak, popPanels.getModeRecord("frenzy")?.bestStreak ?? 0);
+  const tier = popRules.getFrenzyTier(run.streak);
+  const streakText = activeMode === "sequence" ? `Flow ×${run.flow}` :
+    (now < frenzyAnnouncementUntil && tier.label ? tier.label :
+      `Streak ${run.streak} · ×${tier.multiplier + Number(run.effects.frenzyBoostUntil > time)}`);
+  if (streakLabel.textContent !== streakText) streakLabel.textContent = streakText;
+  streakLabel.hidden = activeMode !== "frenzy" && !(activeMode === "sequence" && run.flow);
+  updateFrenzyMarker(best);
+}
+
+function loadFrenzyRivals() {
+  frenzyRivals = [];
+  if (activeMode !== "frenzy") return;
+  multiplayer.frenzyRecords().then((data) => {
+    if (activeMode !== "frenzy" || !data) return;
+    frenzyRivals = [...data.weekly].reverse();
+  });
+}
+
+function updateFrenzyMarker(best) {
+  frenzyMarker.hidden = activeMode !== "frenzy" || gameplayStartedAt === null;
+  if (frenzyMarker.hidden) return;
+  const name = popPanels.getNickname();
+  const rival = frenzyRivals.find((entry) => entry.streak > run.streak && entry.name !== name);
+  const goal = Math.max(best, rival?.streak ?? 0, 1);
+  const label = rival ? `${rival.name} · ${rival.streak - run.streak} pops ahead` : `Personal best · ${best}`;
+  const text = frenzyMarker.querySelector("span");
+  if (text.textContent !== label) text.textContent = label;
+  frenzyMarker.style.setProperty("--ghost-progress", `${Math.min(100, run.streak * 100 / goal)}%`);
+  frenzyMarker.style.setProperty("--ghost-best", `${Math.min(100, best * 100 / goal)}%`);
+  const portrait = frenzyMarker.querySelector("img");
+  portrait.hidden = !rival;
+  if (rival) {
+    const src = `pages/gameplay/player_card/${rival.character}.png`;
+    if (portrait.getAttribute("src") !== src) portrait.src = src;
+  }
+}
+
+function castLocalSkill(skill, event, now) {
+  if (skillDefinitions[skill].kind === "attack") {
+    const rival = botRuntimes.filter((bot) => !bot.run.incoming && !(bot.run.lastAttackedAt + popRules.attackGraceMs > now))
+      .sort((a, b) => b.player.score - a.player.score)[0];
+    if (!rival) return false;
+    rival.run.incoming = { skill, at: now + popRules.attackWarningMs };
+  }
+  popRules.castSkill(run, skill, now);
+  if (skill === "blast") {
+    for (let hits = 0; hits < 3 && activeTargets.size; hits += 1) {
+      popGameplayBubble(gameplayCells[activeTargets.values().next().value], event, true);
+    }
+  }
+  renderGameplayLives();
+  return true;
+}
+
+function useGameplaySkill(event) {
+  const button = event.currentTarget;
+  const skill = button.dataset.gameplaySkill;
+  const now = performance.now();
+  if (button.disabled || gameplayStartedAt === null || countdownActive || spillActive) return;
+  unlockGameplayAudio();
+  if (popPanels.getCoins() < skillDefinitions[skill].coins) {
+    topUpOffer.dataset.skill = skill;
+    topUpOffer.textContent = popPanels.getGems() >= 5 ? "Exchange 5 Gems → 250 Coins & cast" : "5 Gems needed to exchange";
+    topUpOffer.disabled = popPanels.getGems() < 5;
+    topUpOffer.hidden = false;
+    return;
+  }
+  activateGameplaySkill(skill, event, now);
+}
+
+function activateGameplaySkill(skill, event, now, topUp = false) {
+  topUpOffer.hidden = true;
+  if (onlineGameplay) {
+    if (onlineGameplay.pendingSkill || !sendOnlineGameplayInput("skill", { skill, topUp })) return;
+    onlineGameplay.pendingSkill = onlineGameplay.sentSeq;
+    if (topUp) onlineGameplay.pendingTopUp = run.coinsSpent;
+    refreshGameplaySkills(false);
+    return;
+  }
+  if (!castLocalSkill(skill, event, now)) return;
+  if (topUp) popPanels.exchangeCoins(5, 250);
+  popPanels.spendCoins(skillDefinitions[skill].coins);
+  playGameplayInputSound(coinSound, event);
+  refreshGameplaySkills(true);
+}
+
+topUpOffer.addEventListener("click", (event) => {
+  const skill = topUpOffer.dataset.skill;
+  const now = performance.now();
+  refreshGameplaySkills(updateGameplayMatch(now), now);
+  const button = skillButtons.find((entry) => entry.dataset.gameplaySkill === skill);
+  if (!button?.disabled && button && popPanels.getGems() >= 5) {
+    activateGameplaySkill(skill, event, now, button.hasAttribute("data-insufficient"));
+  } else topUpOffer.hidden = true;
+});
+
+function updateSkillVisuals(now) {
+  const effects = run.effects;
+  gameplayGrid.toggleAttribute("data-fog", effects.fogUntil > now);
+  gameplayGrid.toggleAttribute("data-reverse", effects.reverseUntil > now);
+  gameplayGrid.toggleAttribute("data-golden", effects.goldenUntil > now);
+  for (const cell of gameplayCells) {
+    const fake = effects.fakeUntil > now && effects.fakeIds?.includes(cell.index) && cell.state === "off";
+    if (fake) {
+      cell.bubble.setAttribute("data-fake-target", "");
+      cell.bubble.classList.remove("gameplay-bubble--white");
+      cell.bubble.dataset.bubbleColor = activeColorPair?.targetColor.id ?? "green";
+    } else if (cell.bubble.hasAttribute("data-fake-target")) {
+      cell.bubble.removeAttribute("data-fake-target");
+      applyCellVisual(cell);
+    }
+  }
+  const attack = run.incoming;
+  warningLabel.hidden = !attack;
+  if (attack) {
+    const seconds = Math.max(0, (attack.at - now) / 1000).toFixed(1);
+    warningLabel.textContent = `${skillDefinitions[attack.skill].symbol} ${skillDefinitions[attack.skill].name} · ${seconds}s`;
+    warningLabel.style.setProperty("--warning-progress", `${Math.max(0, (attack.at - now) / popRules.attackWarningMs) * 100}%`);
+    if (lastWarning !== attack.at) {
+      playStreakNote(2);
+      setTimeout(() => playStreakNote(5), 115);
+    }
+  }
+  lastWarning = attack?.at ?? null;
+  gameplayScreen.toggleAttribute("data-attack-warning", Boolean(attack));
+  gameplayScreen.toggleAttribute("data-shield", effects.shieldUntil > now);
+  gameplayScreen.toggleAttribute("data-blocked-attack", (run.blockedAt ?? -Infinity) + 450 > now);
+}
+
+function renderGameplayLives() {
+  if (run.lives === null) {
     gameplayLivesEl.hidden = true;
     gameplayLivesEl.replaceChildren();
     return;
   }
   gameplayLivesEl.hidden = false;
-  gameplayLivesEl.setAttribute("aria-label", `${frenzyLives} of ${frenzyMaxLives} lives left`);
+  gameplayLivesEl.setAttribute("aria-label", `${run.lives} of ${frenzyMaxLives} lives left`);
   gameplayLivesEl.replaceChildren(
     ...Array.from({ length: frenzyMaxLives }, (_, i) => {
       const heart = document.createElement("span");
-      heart.className = i < frenzyLives ? "gameplay-heart" : "gameplay-heart gameplay-heart--lost";
+      heart.className = i < run.lives ? "gameplay-heart" : "gameplay-heart gameplay-heart--lost";
       heart.textContent = "♥";
       heart.setAttribute("aria-hidden", "true");
       return heart;
@@ -383,15 +578,64 @@ document.querySelector("#play-match").addEventListener("click", unlockGameplayAu
 
 function playGameplayInputSound(sound, event) {
   const audioReady = sound.buffer && gameplayAudioContext?.state === "running";
-  if (event.type === "touchstart" && !audioReady && !navigator.userActivation?.isActive) {
+  if (event?.type === "touchstart" && !audioReady && !navigator.userActivation?.isActive) {
     queuedInputSounds.push(sound);
   } else {
     playGameplaySound(sound);
   }
 }
 
+function playStreakNote(step, wave = "sine") {
+  if (gameplayAudioContext?.state !== "running") return;
+  const start = gameplayAudioContext.currentTime;
+  const note = gameplayAudioContext.createOscillator();
+  const volume = gameplayAudioContext.createGain();
+  note.type = wave;
+  note.frequency.value = 440 * 2 ** ([0, 2, 4, 5, 7, 9, 11, 12][(step - 1) % 8] / 12);
+  volume.gain.setValueAtTime(0.14, start);
+  volume.gain.exponentialRampToValueAtTime(0.001, start + 0.13);
+  note.connect(volume).connect(gameplayAudioContext.destination);
+  note.start(start);
+  note.stop(start + 0.14);
+}
+
+function announceFrenzyTier(previous, now) {
+  const tier = popRules.getFrenzyTier(run.streak);
+  if (tier.streak <= previous) return;
+  frenzyAnnouncementUntil = now + 900;
+  const step = Math.floor(tier.streak / 10);
+  playStreakNote(1 + (step - 1) % 8);
+  setTimeout(() => playStreakNote(1 + (step * 3) % 8), 90);
+}
+
+function playFlowFeedback(step, index) {
+  playStreakNote(step);
+  const face = gameplayCells[index]?.face;
+  const previous = step > 1 ? previousFlowCell : null;
+  previousFlowCell = face;
+  if (!face || reduceBubbleMotion.matches) return;
+  face.animate?.([{ filter: "brightness(1.7)" }, { filter: "none" }], 300);
+  if (!previous || previous === face) return;
+  const start = previous.getBoundingClientRect();
+  const end = face.getBoundingClientRect();
+  const board = gameplayGrid.parentElement;
+  const origin = board.getBoundingClientRect();
+  const dx = end.left + end.width / 2 - start.left - start.width / 2;
+  const dy = end.top + end.height / 2 - start.top - start.height / 2;
+  const line = document.createElement("span");
+  line.className = "gameplay-flow-line";
+  line.style.left = `${start.left + start.width / 2 - origin.left}px`;
+  line.style.top = `${start.top + start.height / 2 - origin.top}px`;
+  line.style.width = `${Math.hypot(dx, dy)}px`;
+  line.style.rotate = `${Math.atan2(dy, dx)}rad`;
+  board.append(line);
+  setTimeout(() => line.remove(), 300);
+}
+
 function playPopFeedback(event) {
-  playGameplayInputSound(popSound, event);
+  const sound = popPanels.getCosmetic("popSfx");
+  if (sound === "arcade" || sound === "retro") playStreakNote(1 + run.streak % 8, sound === "retro" ? "square" : "sine");
+  else playGameplayInputSound(popSound, event);
   if (typeof navigator.vibrate !== "function") return;
   if (event.type === "touchstart" && !navigator.userActivation?.hasBeenActive) {
     queuedPopHaptics += 1;
@@ -407,29 +651,18 @@ function setGameplayBoardDisabled(disabled) {
 function setWrongPopFeedback(locked, customMessage = "Wrong pop · Board locked") {
   gameplayPenalty.textContent = customMessage;
   gameplayPenalty.hidden = !locked;
-  gameplayRule.hidden = locked;
+  gameplayRule.hidden = locked || (gameplayStartedAt !== null && !activeTargets.size);
   gameplayScreen.classList.toggle("gameplay--wrong-pop", locked);
   gameplayBoardStatus.textContent = locked ? customMessage : "";
 }
 
-function lockGameplayBoard(restoreFocus, customMs = wrongPopLockMs, msg = "Wrong pop · Board locked") {
-  if (wrongPopTimer !== null) clearTimeout(wrongPopTimer);
-  setGameplayBoardDisabled(true);
-  setWrongPopFeedback(true, msg);
-  wrongPopTimer = setTimeout(() => {
-    wrongPopTimer = null;
-    if (gameplayStartedAt === null || spillActive) return;
-    setWrongPopFeedback(false);
-    setGameplayBoardDisabled(false);
-    if (restoreFocus && document.activeElement === document.body) focusNextGameplayBubble();
-  }, customMs);
-}
-
-function setPopRushReadyState(ready, { label = "Pop Rush", statusHtml = "Tap <strong>Pop Rush!</strong>", showBanner = false, moveFocus = false, enabled = ready || gameplayStartedAt !== null } = {}) {
+function setPopRushReadyState(ready, { label = "POP IT!", statusHtml = "Tap <strong>POP IT!</strong>", showBanner = false, moveFocus = false, enabled = ready || gameplayStartedAt !== null } = {}) {
   const wasReady = popRushSlot.dataset.ready === "true";
   popRushButton.disabled = !enabled;
+  popRushSlot.hidden = activeMode === "frenzy" && label !== "Results";
   popRushButton.dataset.mode = label === "Results" ? "results" : "rush";
   popRushSlot.dataset.ready = String(ready);
+  gameplayGrid.toggleAttribute("data-gesture-reset", ready && modeConfig.resetControl === "swipe");
   if (popRushLabel.textContent !== label) popRushLabel.textContent = label;
   if (popRushStatusText) popRushStatusText.innerHTML = statusHtml;
   popRushActions.hidden = !showBanner;
@@ -437,22 +670,15 @@ function setPopRushReadyState(ready, { label = "Pop Rush", statusHtml = "Tap <st
 }
 
 function showReadyPopRush(moveFocus = true, options = {}) {
-  setGameplayBoardDisabled(true);
   gameplayRule.hidden = true;
-  enableShakeButton.hidden = typeof motionEvent?.requestPermission !== "function" || enableShakeButton.disabled;
-  setPopRushReadyState(true, { label: "Pop Rush", showBanner: true, moveFocus, ...options });
+  enableShakeButton.hidden = modeConfig.resetControl !== "motion" || typeof motionEvent?.requestPermission !== "function" || enableShakeButton.disabled;
+  setPopRushReadyState(true, { label: "POP IT!", showBanner: true, moveFocus, ...options });
 }
 
 function formatModeBanner(modeId, isNext = false) {
   const meta = popRules.getMode(modeId);
-  let label = meta.name;
-  if (modeId === "rush") {
-    const sec = onlineGameplay ? (onlineGameplay.state.rushSeconds ?? 45) : modeConfig.rushSeconds;
-    label = `Rush (${sec}s)`;
-  } else if (meta.maxLevel > 1) {
-    const lv = onlineGameplay ? (onlineGameplay.state.modeLevel ?? 1) : getModeLevel(modeId);
-    label = `${meta.name} Lv.${lv}`;
-  }
+  const level = onlineGameplay?.state.modeLevel ?? getModeLevel(modeId);
+  const label = meta.maxLevel > 1 ? `${meta.name} Lv.${level}` : meta.name;
   return isNext ? `NEXT: ${label}` : label;
 }
 
@@ -523,10 +749,12 @@ function clearSpillTimers() {
 function applyCellVisual(cell, { raise = false } = {}) {
   const isPushed = cell.state === "pushed";
   const isTarget = cell.state === "on";
-  const marked = activeMode === "memory" ? isPushed : (isTarget || isPushed);
-  const color = marked ? activeColorPair?.targetColor : activeColorPair?.offColor;
+  cell.bubble.toggleAttribute("data-target", isTarget && activeMode !== "memory");
+  const marked = activeMode === "memory" ? (isPushed && !cell.mistake) : (isTarget || (isPushed && !cell.mistake));
+  const color = marked ? activeColorPair?.targetColor : decoyColors[cell.index];
   const tone = color?.label ?? (marked ? "Green" : "White");
   cell.bubble.classList.toggle("gameplay-bubble--white", !marked && !color);
+  cell.bubble.classList.toggle("gameplay-bubble--incorrect", Boolean(isPushed && cell.mistake));
   if (color) cell.bubble.dataset.bubbleColor = color.id;
   else delete cell.bubble.dataset.bubbleColor;
   cell.bubble.setAttribute(
@@ -538,234 +766,163 @@ function applyCellVisual(cell, { raise = false } = {}) {
   const pressed = isPushed ? "false" : "true";
   const wasDown = cell.bubble.getAttribute("aria-pressed") === "false";
   cell.bubble.setAttribute("aria-pressed", pressed);
+  if (wasDown !== isPushed) cell.face.classList.remove("gameplay-bubble-face--mistap");
   if (raise && wasDown && pressed === "true" && !reduceBubbleMotion.matches) {
     cell.riseAnimation?.cancel();
-    cell.riseAnimation = cell.face.animate?.(bubbleRiseFrames, { duration: 230, easing: "ease-out" });
+    cell.riseAnimation = cell.face.animate?.(bubbleRiseFrames, {
+      duration: 230,
+      delay: resetWave ? Math.max(0, 4 - cell.row) * 42 : 0,
+      easing: "ease-out",
+      fill: "backwards",
+    });
   }
 }
 
-function startMemorySpill() {
+function startMemorySpill(elapsed = 0) {
   clearSpillTimers();
+  if (!onlineGameplay) sessionDeadline = null;
+  const duration = popRules.memorySpillDuration(activeModeLevel, activeSpillOrder.length);
+  if (elapsed >= duration) {
+    setRulePrompt(`Pop <strong>${activeTargets.size}</strong> remembered!`, "green");
+    return;
+  }
   spillActive = true;
   setPopRushReadyState(false, { enabled: false });
   setGameplayBoardDisabled(true);
   setRulePrompt(`Watch! <strong>Memorize (${activeSpillOrder.length})</strong>`, "green");
-  const { onMs, offMs } = popRules.getMemorySpillTiming(activeModeLevel);
-  let cursor = 260;
+  const { gapMs } = popRules.getGameLevel("memory", activeModeLevel);
 
-  for (const idx of activeSpillOrder) {
+  activeSpillOrder.forEach((idx, order) => {
     const cell = gameplayCells[idx];
-    if (!cell) continue;
-    spillTimers.push(
-      setTimeout(() => {
-        if (gameplayStartedAt === null) return;
-        cell.bubble.classList.add("gameplay-bubble--spill-on");
-      }, cursor),
-    );
-    cursor += onMs;
-    spillTimers.push(
-      setTimeout(() => {
-        if (gameplayStartedAt === null) return;
-        cell.bubble.classList.remove("gameplay-bubble--spill-on");
-      }, cursor),
-    );
-    cursor += offMs;
-  }
+    if (!cell) return;
+    const startsIn = 260 + order * gapMs - elapsed;
+    const endsIn = startsIn + 220;
+    if (endsIn <= 0) return;
+    spillTimers.push(setTimeout(() => cell.bubble.classList.add("gameplay-bubble--spill-on"), Math.max(0, startsIn)));
+    spillTimers.push(setTimeout(() => cell.bubble.classList.remove("gameplay-bubble--spill-on"), endsIn));
+  });
 
-  spillTimers.push(
-    setTimeout(() => {
-      if (gameplayStartedAt === null) return;
-      spillActive = false;
+  spillTimers.push(setTimeout(() => {
+    if (gameplayStartedAt === null) return;
+    spillActive = false;
+    if (!onlineGameplay) {
+      startLocalSessionClock(performance.now());
       setPopRushReadyState(false);
       setGameplayBoardDisabled(false);
-      setRulePrompt(`Pop <strong>${activeTargets.size}</strong> remembered!`, "green");
-      gameplayBoardStatus.textContent = "Spill finished. Pop the remembered bubbles.";
-    }, cursor + 80),
-  );
-}
-
-function handleClassicOrRushClear(now) {
-  if (activeMode === "classic") {
-    if (stageIndex < activeStages.length - 1) {
-      showReadyPopRush();
-    } else {
-      transitionToNextMode = "memory";
-      showReadyPopRush(true, {
-        label: "Next Mode",
-        statusHtml: "Classic Clear! Tap <strong>Pop Rush</strong> &rarr; Memory",
-      });
     }
-    return;
-  }
-  if (activeMode === "rush") {
-    humanScore += 50;
-    gameplayHuman.score = humanScore;
-    renderGameplayScores();
-    showReadyPopRush(true, {
-      label: "Pop Rush",
-      statusHtml: `Wave ${stageIndex + 1} Clear! Tap <strong>Pop Rush!</strong>`,
-    });
-  }
+    setRulePrompt(`Pop <strong>${activeTargets.size}</strong> remembered!`, "green");
+    gameplayBoardStatus.textContent = "Spill finished. Pop the remembered bubbles.";
+  }, duration - elapsed));
 }
 
-function advanceMultiSessionMode(modeId, labelPrefix) {
-  const modeMeta = popRules.getMode(modeId);
-  if (activeSessionIndex < modeMeta.sessionsPerLevel - 1) {
-    showReadyPopRush(true, {
-      label: "Next",
-      statusHtml: `Session ${activeSessionIndex + 1}/10 Clear! Tap <strong>Pop Rush</strong>`,
-    });
-    return;
-  }
-  // Level completed (10/10 sessions) -> unlock next level and chain to next mode
-  const prevLevel = activeModeLevel;
-  if (prevLevel < modeMeta.maxLevel) setModeLevel(modeId, prevLevel + 1);
-  const nextMode = popRules.getNextMode(modeId);
-  if (nextMode) {
-    transitionToNextMode = nextMode;
-    humanScore += 100;
-    gameplayHuman.score = humanScore;
-    renderGameplayScores();
-    showReadyPopRush(true, {
-      label: "Next Mode",
-      statusHtml: `${modeMeta.shortName} Clear! Tap <strong>Pop Rush</strong> &rarr; ${popRules.getMode(nextMode).shortName}`,
-    });
-    return;
-  }
-  finishGameplayMatch(gameplayHuman, `${modeMeta.name} Level ${prevLevel} Complete!`);
+function showWrongFeedback(message) {
+  clearTimeout(wrongPopTimer);
+  setWrongPopFeedback(true, message);
+  wrongPopTimer = setTimeout(() => {
+    wrongPopTimer = null;
+    setWrongPopFeedback(false);
+  }, 360);
 }
 
-function applyWrongPopPenalty(now, event) {
+function applyWrongPopPenalty(now, event, count = 1, reason) {
   playGameplayInputSound(incorrectSound, event);
-  const frenzy = activeMode === "frenzy";
-  const lockMs = frenzy ? 380 : wrongPopLockMs;
-  if (onlineGameplay) {
-    onlineGameplay.lockUntil = onlineGameplayClock(now) + lockMs;
-    updateOnlineGameplay(now);
+  if (onlineGameplay) return;
+  if (!popRules.scoreWrong(run, count, now)) {
+    gameplayBoardStatus.textContent = "Shield blocked the penalty.";
     return;
   }
-
-  if (frenzy) {
-    frenzyLives = Math.max(0, frenzyLives - 1);
-    renderFrenzyLives();
-    if (frenzyLives <= 0) {
-      finishGameplayMatch(null, "Out of lives in Frenzy!");
-      return;
-    }
-  }
-  const message = frenzy ? `Wrong pop · ${frenzyLives} lives left` : undefined;
-  lockGameplayBoard(event.type === "click" && event.detail === 0, lockMs, message);
+  gameplayHuman.score = run.score;
+  renderGameplayScores();
+  renderGameplayLives();
+  const lifeText = run.lives === null ? "" : ` · ${run.lives} lives left`;
+  showWrongFeedback(`${reason ?? (count === 1 ? "Wrong pop" : `${count} targets missed`)} · −${count * 5} points${lifeText}`);
+  if (run.lives === 0) finishGameplayMatch(null, "Out of lives.");
 }
 
-function popGameplayBubble(cell, event) {
+function animateWrongBubble(cell) {
+  cell.riseAnimation?.cancel();
+  cell.face.classList.remove("gameplay-bubble-face--mistap");
+  void cell.face.offsetWidth;
+  cell.face.classList.add("gameplay-bubble-face--mistap");
+}
+
+function popGameplayBubble(cell, event, fromSkill = false) {
   const now = performance.now();
-  if (cell.bubble.disabled || spillActive || countdownActive || !updateGameplayMatch(now)) return;
+  if (cell.bubble.disabled || cell.state === "pushed" || spillActive || countdownActive || !updateGameplayMatch(now)) return;
+  if (!onlineGameplay && !fromSkill && run.effects.magnet) {
+    delete run.effects.magnet;
+    for (const index of [...activeTargets]) popGameplayBubble(gameplayCells[index], event, true);
+    playPopFeedback(event);
+    return;
+  }
+  const correct = activeTargets.has(cell.index);
   if (onlineGameplay && !sendOnlineGameplayInput("pop", { cell: cell.index })) return;
 
-  if (onlineGameplay) {
-    const isValidOnline =
-      activeMode === "memory"
-        ? activeTargets.has(cell.index) && cell.state !== "pushed"
-        : cell.state === "on" && activeTargets.has(cell.index);
-    if (!isValidOnline) {
-      applyWrongPopPenalty(now, event);
-      return;
-    }
-    cell.riseAnimation?.cancel();
-    cell.state = "pushed";
-    activeTargets.delete(cell.index);
-    applyCellVisual(cell);
-    playPopFeedback(event);
-    stageCleared += 1;
-    renderPopPower();
-    if (activeTargets.size === 0 && activeMode !== "sequence" && activeMode !== "frenzy") {
-      setGameplayBoardDisabled(true);
-      const stageCount = onlineGameplay.state.self?.stageCount ?? 1;
-      if (activeMode === "rush" || stageIndex < stageCount - 1) showReadyPopRush();
-    } else if (event.type === "click" && event.detail === 0 && activeMode !== "memory") {
-      focusNextGameplayBubble();
-    }
-    return;
-  }
-
-  // Evaluate local target hit based on activeMode
-  const isValidTarget =
-    activeMode === "memory"
-      ? activeTargets.has(cell.index) && cell.state !== "pushed"
-      : cell.state === "on" && activeTargets.has(cell.index);
-
-  if (!isValidTarget) {
-    applyWrongPopPenalty(now, event);
-    return;
-  }
-
-  // Correct pop!
-  playPopFeedback(event);
   cell.riseAnimation?.cancel();
   cell.state = "pushed";
-  activeTargets.delete(cell.index);
+  cell.mistake = !correct;
+  if (correct) activeTargets.delete(cell.index);
   applyCellVisual(cell);
-  stageCleared += 1;
-  renderPopPower();
-  humanScore += 10;
+  if (correct && popPanels.getCosmetic("popVfx") === "blue-flame" && !reduceBubbleMotion.matches) {
+    cell.face.animate?.([{ filter: "drop-shadow(0 -9px 7px #00d5ff) brightness(1.6)" }, { filter: "none" }], 340);
+  }
+  if (!correct) animateWrongBubble(cell);
+  if (onlineGameplay) {
+    if (correct && !fromSkill) playPopFeedback(event);
+    else if (!correct) applyWrongPopPenalty(now, event);
+    return;
+  }
+
+  if (!correct) {
+    applyWrongPopPenalty(now, event);
+    if (activeMode === "frenzy" && gameplayStartedAt !== null) startLocalSessionClock(now);
+    if (gameplayStartedAt !== null && !activeTargets.size && activeMode !== "frenzy") showReadyPopRush();
+    return;
+  }
+
+  const previousFlow = run.flow;
+  const previousTier = popRules.getFrenzyTier(run.streak).streak;
+  popRules.scoreCorrect(run, activeMode, now, cell.index);
+  if (!fromSkill) playPopFeedback(event);
+  if (activeMode === "frenzy") {
+    startLocalSessionClock(now);
+    announceFrenzyTier(previousTier, now);
+  }
+  if (activeMode === "sequence" && run.flow > previousFlow) playFlowFeedback(run.flow, cell.index);
   humanTotalCleared += 1;
   gameplayHuman.cleared += 1;
   gameplayHuman.totalCleared = humanTotalCleared;
-  gameplayHuman.score = humanScore;
+  gameplayHuman.score = run.score;
   gameplayHuman.reachedAt = now - gameplayStartedAt;
 
-  if (activeMode === "sequence") {
-    const offCells = gameplayCells.filter((c) => c.state === "off");
-    if (offCells.length > 0) {
-      const picked = offCells[Math.floor(Math.random() * offCells.length)];
-      picked.state = "on";
-      activeTargets.add(picked.index);
-      applyCellVisual(picked, { raise: true });
-    }
-    renderGameplayScores();
-    if (activeTargets.size === 0) {
-      setGameplayBoardDisabled(true);
-      advanceMultiSessionMode("sequence", "Sequence");
-    }
-    return;
-  }
-
   if (activeMode === "frenzy") {
-    // Revert all OTHER PUSHED bubbles back to OFF, then promote 1 random OFF bubble to ON
-    for (const c of gameplayCells) {
-      if (c.index !== cell.index && c.state === "pushed") {
-        c.state = "off";
-        applyCellVisual(c, { raise: true });
-      }
+    for (const other of gameplayCells) {
+      if (other === cell || other.state !== "pushed") continue;
+      other.state = "off";
+      other.mistake = false;
+      applyCellVisual(other, { raise: true });
     }
-    const offCells = gameplayCells.filter((c) => c.state === "off");
-    if (offCells.length > 0) {
+  }
+  if (activeMode === "sequence" || activeMode === "frenzy") {
+    const offCells = gameplayCells.filter((candidate) => candidate.state === "off");
+    if (offCells.length) {
       const picked = offCells[Math.floor(Math.random() * offCells.length)];
       picked.state = "on";
+      if (activeMode === "sequence") run.appearedAt[picked.index] = now;
       activeTargets.add(picked.index);
       applyCellVisual(picked, { raise: true });
     }
-    renderGameplayScores();
-    return;
   }
 
   renderGameplayScores();
-
-  if (activeTargets.size === 0) {
-    setGameplayBoardDisabled(true);
-    if (activeMode === "classic" || activeMode === "rush") {
-      handleClassicOrRushClear(now);
-    } else if (activeMode === "memory") {
-      advanceMultiSessionMode("memory", "Memory");
-    } else if (activeMode === "color_hunt") {
-      advanceMultiSessionMode("color_hunt", "Color Hunt");
-    }
-  } else if (event.type === "click" && event.detail === 0 && activeMode !== "memory") {
-    focusNextGameplayBubble();
-  }
+  renderGameplayLives();
+  if (!activeTargets.size && activeMode !== "frenzy") showReadyPopRush();
+  else if (event.type === "click" && event.detail === 0 && activeMode !== "memory") focusNextGameplayBubble();
 }
 
 let gameplayCells = [];
+let resetWave = false;
+let boardGesture = null;
 
 function buildGameplayCells(board) {
   if (gameplayGrid.dataset.builtBoard === board.id) return;
@@ -782,6 +939,11 @@ function buildGameplayCells(board) {
     bubble.className = "gameplay-bubble";
     face.className = "gameplay-bubble-face";
     face.setAttribute("aria-hidden", "true");
+    face.addEventListener("animationend", (event) => {
+      if (event.animationName.startsWith("matte-bubble-mistap")) {
+        face.classList.remove("gameplay-bubble-face--mistap");
+      }
+    });
     compress.className = "gameplay-bubble-compress";
     face.append(compress);
     bubble.append(face);
@@ -792,11 +954,13 @@ function buildGameplayCells(board) {
       face,
       index,
       state: "off",
+      mistake: false,
       row: spec?.row ?? Math.floor(index / 4) + 1,
       column: spec?.column ?? index % 4 + 1,
       shape: spec?.shape ?? "circle",
     };
     bubble.addEventListener("touchstart", (event) => {
+      if (modeConfig.resetControl === "swipe" && isPopRushReady()) return;
       if (event.cancelable) event.preventDefault();
       if (event.defaultPrevented) popGameplayBubble(cell, event);
     }, { passive: false });
@@ -811,168 +975,133 @@ function buildGameplayCells(board) {
 
 buildGameplayCells(equippedBoard);
 
+function stageDuration() {
+  return popRules.sessionDuration(activeMode, activeModeLevel, activeBoard.cellCount);
+}
+
+function startLocalSessionClock(now) {
+  if (run.startShieldPending) {
+    run.effects.shieldUntil = now + 3000;
+    delete run.startShieldPending;
+  }
+  sessionDeadline = now + (activeMode === "frenzy" ? popRules.getFrenzyTier(run.streak).durationMs : stageDuration());
+}
+
 function setupSessionState(raiseBubbles = false, { deferStart = false } = {}) {
   clearSpillTimers();
-  transitionToNextMode = null;
   buildGameplayCells(activeBoard);
   applyBoardTheme(gameplayGrid.parentElement, activeBoard);
   gameplayScreen.querySelector("#gameplay-board-name").textContent = activeBoard.name;
-  stageCleared = 0;
-  renderPopPower();
   shakePulse = null;
   gravityBaseline = null;
-  setPopRushReadyState(false, { label: "Pop Rush", showBanner: false });
-  setWrongPopFeedback(false);
-  renderFrenzyLives();
-
-  if (onlineGameplay) {
-    const targets = activeStages[stageIndex] ?? activeBoard.stages[stageIndex];
-    activeTargets = new Set(targets);
-    gameplayTitle.textContent = `Stage ${stageIndex + 1}/${activeStages.length}`;
-    setClassicTargetPrompt();
-    setGameplayBoardDisabled(deferStart);
-    for (const cell of gameplayCells) {
-      cell.state = targets.includes(cell.index) ? "on" : "off";
-      applyCellVisual(cell, { raise: raiseBubbles });
-    }
-    return;
+  const session = popRules.createLevelSession(activeMode, activeModeLevel, activeBoard.cellCount,
+    activeMode === "classic" ? activeColorPair : null);
+  activeTargets = new Set(session.targets);
+  activeColorPair = session.colorPair;
+  activeSpillOrder = session.spillOrder;
+  decoyColors = session.decoyColors;
+  sessionDeadline = null;
+  setPopRushReadyState(false, { showBanner: false });
+  if (wrongPopTimer === null) setWrongPopFeedback(false);
+  renderGameplayLives();
+  renderSessionHeading();
+  for (const cell of gameplayCells) {
+    cell.mistake = false;
+    cell.state = activeMode !== "memory" && activeTargets.has(cell.index) ? "on" : "off";
+    applyCellVisual(cell, { raise: raiseBubbles });
   }
+  setGameplayBoardDisabled(deferStart || activeMode === "memory");
+  if (deferStart) renderGameplayTime(stageDuration());
+  else if (activeMode === "memory") startMemorySpill();
+  else startLocalSessionClock(performance.now());
+}
 
-  if (activeMode === "classic") {
-    const targets = activeStages[stageIndex];
-    activeTargets = new Set(targets);
-    gameplayTitle.textContent = `Stage ${stageIndex + 1}/${activeStages.length}`;
-    setClassicTargetPrompt();
-    setGameplayBoardDisabled(deferStart);
-    for (const cell of gameplayCells) {
-      cell.state = activeTargets.has(cell.index) ? "on" : "off";
-      applyCellVisual(cell, { raise: raiseBubbles });
-    }
-  } else if (activeMode === "rush") {
-    const targets = activeStages[stageIndex] ?? popRules.createClassicStages(activeBoard)[0];
-    activeStages[stageIndex] = targets;
-    activeTargets = new Set(targets);
-    gameplayTitle.textContent = `Rush · Wave ${stageIndex + 1}`;
-    setRulePrompt("Pop only <strong>GREEN!</strong>", "green");
-    setGameplayBoardDisabled(deferStart);
-    for (const cell of gameplayCells) {
-      cell.state = activeTargets.has(cell.index) ? "on" : "off";
-      applyCellVisual(cell, { raise: raiseBubbles });
-    }
+function renderSessionHeading() {
+  const config = popRules.getGameLevel(activeMode, activeModeLevel);
+  const meta = popRules.getMode(activeMode);
+  gameplayTitle.textContent = activeMode === "frenzy" ? meta.name :
+    `${meta.shortName} Lv.${activeModeLevel} · ${stageIndex + 1}/${config.sessions}`;
+  if (activeMode === "classic") setClassicTargetPrompt();
+  else if (activeMode === "color_hunt") {
+    const color = activeColorPair.targetColor;
+    setRulePrompt(`Pop only <strong>${color.label}!</strong>`, color.id);
   } else if (activeMode === "memory") {
-    activeSpillOrder = popRules.createSessionTargets(activeBoard.cellCount, 0.30);
-    activeTargets = new Set(activeSpillOrder);
-    gameplayTitle.textContent = `Memory Lv.${activeModeLevel} · ${activeSessionIndex + 1}/10`;
-    for (const cell of gameplayCells) {
-      cell.state = "off";
-      applyCellVisual(cell, { raise: raiseBubbles });
-    }
-    if (deferStart) {
-      setGameplayBoardDisabled(true);
-      setRulePrompt("Get ready to <strong>memorize!</strong>", "green");
-    } else {
-      startMemorySpill();
-    }
-    return;
-  } else if (activeMode === "sequence") {
-    const targets = popRules.createSessionTargets(activeBoard.cellCount, 0.50);
-    activeTargets = new Set(targets);
-    gameplayTitle.textContent = `Sequence Lv.${activeModeLevel} · ${activeSessionIndex + 1}/10`;
-    setRulePrompt("Pop <strong>GREEN!</strong> Watch refill", "green");
-    setGameplayBoardDisabled(deferStart);
-    for (const cell of gameplayCells) {
-      cell.state = activeTargets.has(cell.index) ? "on" : "off";
-      applyCellVisual(cell, { raise: raiseBubbles });
-    }
-  } else if (activeMode === "color_hunt") {
-    const targets = popRules.createSessionTargets(activeBoard.cellCount, 0.50);
-    activeColorPair = popRules.pickColorHuntPair();
-    activeTargets = new Set(targets);
-    gameplayTitle.textContent = `Color Lv.${activeModeLevel} · ${activeSessionIndex + 1}/10`;
-    setRulePrompt(`Pop only <strong>${activeColorPair.targetColor.label}!</strong>`, activeColorPair.targetColor.id);
-    setGameplayBoardDisabled(deferStart);
-    for (const cell of gameplayCells) {
-      cell.state = activeTargets.has(cell.index) ? "on" : "off";
-      applyCellVisual(cell, { raise: raiseBubbles });
-    }
-  } else if (activeMode === "frenzy") {
-    const targets = popRules.createSessionTargets(activeBoard.cellCount, 0.50);
-    activeTargets = new Set(targets);
-    gameplayTitle.textContent = "Frenzy Mode";
-    setRulePrompt("Pop <strong>GREEN!</strong>", "green");
-    setGameplayBoardDisabled(deferStart);
-    for (const cell of gameplayCells) {
-      cell.state = activeTargets.has(cell.index) ? "on" : "off";
-      applyCellVisual(cell, { raise: raiseBubbles });
-    }
+    setRulePrompt(spillActive ? `Watch! <strong>Memorize (${activeSpillOrder.length})</strong>` :
+      `Pop <strong>${activeTargets.size}</strong> remembered!`, "green");
+  } else {
+    setRulePrompt("Pop only <strong>GREEN!</strong>", "green");
   }
-
 }
 
-function getExpectedTargetCountForMode(modeId) {
-  if (modeId === "classic") return activeBoard.targetCount;
-  if (modeId === "memory") return Math.max(1, Math.round(activeBoard.cellCount * 0.30)) * 10;
-  if (modeId === "sequence") return activeBoard.cellCount * 10;
-  if (modeId === "color_hunt") return Math.max(1, Math.round(activeBoard.cellCount * 0.50)) * 10;
-  return activeBoard.targetCount;
-}
-
-function switchGameplayMode(modeId, resetClock = true, { preserveTotals = false, isTransition = false } = {}) {
+function switchGameplayMode(modeId) {
   if (gameplayFrame !== null) {
     cancelAnimationFrame(gameplayFrame);
     gameplayFrame = null;
   }
   gameplayStartedAt = null;
-  activeMode = popRules.modeOrder.includes(modeId) ? modeId : "classic";
+  activeMode = popPanels.modeUnlocked(modeId) ? modeId : "classic";
   activeColorPair = activeMode === "classic" ? popRules.pickClassicColorPair() : null;
   activeModeLevel = getModeLevel(activeMode);
-  activeSessionIndex = 0;
   stageIndex = 0;
-  transitionToNextMode = null;
-  frenzyLives = frenzyMaxLives;
-  rushDurationMs = modeConfig.rushSeconds * 1000;
-  activeStages = activeMode === "classic" || activeMode === "rush" ? popRules.createClassicStages(activeBoard) : [];
+  run = popRules.createRunState(activeMode);
+  run.weekend = popRules.weekendBonus(activeMode, false, Date.now());
+  run.skillUpgrades = popPanels.getSkillUpgrades();
+  const { booster, xpBoostUntil } = popPanels.matchBoosters();
+  run.booster = booster;
+  run.xpBoost = xpBoostUntil > Date.now();
+  run.startShieldPending = booster === "shield_start";
+  popPanels.consumeMatchBooster(booster);
+  frenzyAnnouncementUntil = 0;
+  loadFrenzyRivals();
+  completedLevel = false;
+  lastWarning = null;
+  botRuntimes = gameplayOpponents.map((player, index) => {
+    const config = modeConfig.botSettings[index] ?? {};
+    const difficulty = ["Easy", "Medium", "Hard", "Insane"].includes(config.difficulty) ? config.difficulty : "Medium";
+    const skills = Array.isArray(config.skills) ? popRules.normalizeLoadout(config.skills, true)
+      : popRules.createBotLoadout(difficulty);
+    return { player, difficulty, skills, run: popRules.createRunState(activeMode), nextPop: 0, cleared: 0 };
+  });
 
-  const modeTargetTotal = getExpectedTargetCountForMode(activeMode);
+  const level = popRules.getGameLevel(activeMode, activeModeLevel);
+  const modeTargetTotal = level.sessions * (activeMode === "sequence" ? activeBoard.cellCount :
+    popRules.targetSize(activeBoard.cellCount, level.ratio));
   for (const player of gameplayPlayerStates) {
     player.cleared = 0;
-    if (!preserveTotals) {
-      player.score = 0;
-      player.totalCleared = 0;
-    }
+    player.score = 0;
+    player.totalCleared = 0;
     player.reachedAt = 0;
+    player.forfeit = false;
     player.targetCount = modeTargetTotal;
   }
-  if (!preserveTotals) {
-    humanScore = 0;
-    humanTotalCleared = 0;
-  } else {
-    humanScore += 100;
-    gameplayHuman.score = humanScore;
-  }
+  humanTotalCleared = 0;
   setupSessionState(true, { deferStart: true });
   renderGameplayScores();
-  renderGameplayTime(0);
 
   runGameplayCountdown(() => {
-    gameplayStartedAt = resetClock ? performance.now() : (gameplayStartedAt ?? performance.now());
+    gameplayStartedAt = performance.now();
     if (activeMode === "memory") startMemorySpill();
     else {
+      startLocalSessionClock(gameplayStartedAt);
       setPopRushReadyState(false);
       setGameplayBoardDisabled(false);
     }
     gameplayFrame = requestAnimationFrame(tickGameplayMatch);
-  }, formatModeBanner(activeMode, isTransition));
+  }, formatModeBanner(activeMode));
 }
 
 function startGameplayMatch(overrideMode = null) {
   stopGameplayMatch();
   onlineGameplay = null;
   activeBoard = equippedBoard;
+  gameplayPlayerStates.forEach((player, seat) => setGameplayIdentity(player, gameplayPlayers[seat]));
   gameplayHuman = gameplayPlayerStates[selectedCharacterSeat()];
-  gameplayOpponents = gameplayPlayerStates.filter((player) => player !== gameplayHuman);
+  setGameplayIdentity(gameplayHuman, { ...gameplayHuman, name: popPanels.getNickname(), level: popPanels.getPlayerLevel() });
+  gameplayOpponents = gameplayPlayerStates.filter((player) => player !== gameplayHuman).slice(0, modeConfig.botCount);
+  renderSkillDock(getDeckSkills(modeConfig.botCount > 0));
+  lobbySkills = [...modeConfig.lobbySkills];
   gameplayResultsOrder.replaceChildren();
-  switchGameplayMode(overrideMode ?? modeConfig.mode, true, { preserveTotals: false, isTransition: false });
+  switchGameplayMode(overrideMode ?? modeConfig.mode);
 }
 
 function onlineGameplayClock(now) {
@@ -990,42 +1119,17 @@ function applyOnlineSessionHeader() {
   buildGameplayCells(activeBoard);
   applyBoardTheme(gameplayGrid.parentElement, activeBoard);
   gameplayScreen.querySelector("#gameplay-board-name").textContent = activeBoard.name;
-  renderFrenzyLives();
-  if (activeMode === "classic") {
-    gameplayTitle.textContent = `Stage ${stageIndex + 1}/4`;
-    setClassicTargetPrompt();
-  } else if (activeMode === "rush") {
-    gameplayTitle.textContent = `Rush · Wave ${stageIndex + 1}`;
-    setRulePrompt("Pop only <strong>GREEN!</strong>", "green");
-  } else if (activeMode === "memory") {
-    gameplayTitle.textContent = `Memory Lv.${activeModeLevel} · ${stageIndex + 1}/10`;
-    if (spillActive) setRulePrompt(`Watch! <strong>Memorize (${activeSpillOrder.length})</strong>`, "green");
-    else if (onlinePlayShown && performance.now() >= onlinePlayBannerUntil) {
-      setRulePrompt(`Pop <strong>${activeTargets.size}</strong> remembered!`, "green");
-    } else {
-      setRulePrompt("Get ready to <strong>memorize!</strong>", "green");
-    }
-  } else if (activeMode === "sequence") {
-    gameplayTitle.textContent = `Sequence Lv.${activeModeLevel} · ${stageIndex + 1}/10`;
-    setRulePrompt("Pop <strong>GREEN!</strong> Watch refill", "green");
-  } else if (activeMode === "color_hunt") {
-    const label = activeColorPair?.targetColor.label ?? "GREEN";
-    const id = activeColorPair?.targetColor.id ?? "green";
-    gameplayTitle.textContent = `Color Lv.${activeModeLevel} · ${stageIndex + 1}/10`;
-    setRulePrompt(`Pop only <strong>${label}!</strong>`, id);
-  } else if (activeMode === "frenzy") {
-    gameplayTitle.textContent = "Frenzy Mode";
-    setRulePrompt("Pop <strong>GREEN!</strong>", "green");
-  }
+  renderGameplayLives();
+  renderSessionHeading();
 }
 
 function updateOnlineGameplay(now) {
   const { state, connected, lockUntil } = onlineGameplay;
   const serverNow = onlineGameplayClock(now);
-  const elapsed = Math.max(0, serverNow - state.startsAt);
-  renderGameplayTime(elapsed);
-  const readyIn = Math.ceil((state.startsAt - serverNow) / 1000);
+  const readyIn = Math.ceil((state.startsAt - 550 - serverNow) / 1000);
   const selfPlay = state.self;
+  const startsAt = selfPlay.playFrom ?? state.startsAt;
+  renderGameplayTime(selfPlay.alive ? (selfPlay.deadline ?? startsAt) - Math.max(startsAt, serverNow) : 0);
   let message = "";
   if (!connected) {
     message = "Reconnecting to the match…";
@@ -1035,69 +1139,67 @@ function updateOnlineGameplay(now) {
     if (gameplayCountdownValue.dataset.step !== step) showCountdownStep(step, step, onlineTransitionBanner);
     onlinePlayShown = false;
   } else {
-    if (!onlinePlayShown && serverNow < state.startsAt + 550) {
+    if (!onlinePlayShown && serverNow < state.startsAt) {
       onlinePlayShown = true;
-      onlinePlayBannerUntil = now + 550;
+      onlinePlayBannerUntil = now + state.startsAt - serverNow;
       showCountdownStep("PLAY!", "play", onlineTransitionBanner);
-    } else if (onlinePlayShown && now >= onlinePlayBannerUntil && !gameplayCountdown.hidden) {
+    } else if (serverNow >= state.startsAt && !gameplayCountdown.hidden) {
       clearGameplayCountdown();
     }
-    if (serverNow >= state.endsAt) message = "Waiting for results…";
-    else if (selfPlay && !selfPlay.alive) message = "Out of lives · Watching others…";
+    if (selfPlay && !selfPlay.alive) message = selfPlay.completed ? "Level complete · Waiting for rivals…" : "Out of lives · Watching others…";
   }
 
   const preStart = connected && (readyIn > 0 || (onlinePlayShown && now < onlinePlayBannerUntil));
-  if (!preStart && connected && activeMode === "memory" && !message) {
-    const key = `${state.matchId}:${stageIndex}`;
+  if (!message && !preStart && serverNow < (selfPlay?.effects?.paralyzeUntil ?? 0)) message = "Paralyzed · Board frozen";
+  if (!preStart && connected && activeMode === "memory" && !message && serverNow >= selfPlay.sessionStartedAt) {
+    const key = `${state.matchId}:${stageIndex}:${selfPlay?.sessionStartedAt}`;
     if (onlineSpillKey !== key && activeSpillOrder.length > 0) {
       onlineSpillKey = key;
-      startMemorySpill();
+      startMemorySpill(Math.max(0, serverNow - selfPlay.sessionStartedAt));
     }
   }
 
   const locked = !message && !preStart && !spillActive && serverNow < lockUntil;
-  const stageCount = selfPlay?.stageCount ?? 1;
   const cleared = (selfPlay?.targets?.length ?? 1) === 0;
-  const canRush = activeMode === "rush" || (stageCount > 1 && stageIndex < stageCount - 1);
-  const rushAvailable = !message && !preStart && !spillActive && selfPlay?.stage === stageIndex;
+  const canRush = activeMode !== "frenzy";
+  const rushAvailable = !message && !preStart && !spillActive && serverNow >= startsAt &&
+    serverNow < selfPlay.deadline && !onlineGameplay.pendingReset && selfPlay.stage === stageIndex;
   const showRush = rushAvailable && !locked && cleared && canRush;
-  if (locked !== !gameplayPenalty.hidden) {
-    setWrongPopFeedback(locked, activeMode === "frenzy" ? `Wrong pop · ${frenzyLives} lives left` : "Wrong pop · Board locked");
-  }
   if (gameplayOnlineStatus.textContent !== message) gameplayOnlineStatus.textContent = message;
   gameplayOnlineStatus.hidden = !message;
   if (showRush && popRushSlot.dataset.ready !== "true") {
-    showReadyPopRush(false, activeMode === "rush"
-      ? { statusHtml: `Wave ${stageIndex + 1} Clear! Tap <strong>Pop Rush!</strong>` }
-      : activeMode === "memory" || activeMode === "sequence" || activeMode === "color_hunt"
-        ? { label: "Next", statusHtml: `Session ${stageIndex + 1}/10 Clear! Tap <strong>Pop Rush</strong>` }
-        : {});
+    showReadyPopRush(false);
   }
   if (!showRush) setPopRushReadyState(false, { enabled: rushAvailable });
-  gameplayRule.hidden = Boolean(message || (preStart && activeMode !== "memory") || locked || cleared);
-  const disabled = !rushAvailable || locked || cleared;
+  gameplayRule.hidden = Boolean(message || (preStart && activeMode !== "memory") || locked || cleared || wrongPopTimer !== null);
+  const disabled = !rushAvailable || locked;
   if (gameplayCells[0]?.bubble.disabled !== disabled) setGameplayBoardDisabled(disabled);
+  updateSkillVisuals(serverNow);
   return !disabled || showRush;
 }
 
 function startOnlineGameplay(state) {
   stopGameplayMatch();
   gameplayResultsOrder.replaceChildren();
+  renderSkillDock(popRules.normalizeLoadout(state.self.loadout, true));
+  lobbySkills = [...modeConfig.lobbySkills];
   onlinePlayShown = false;
   onlinePlayBannerUntil = 0;
   onlineSpillKey = "";
   onlineGameplay = { state, round: state.round ?? 0, receivedAt: performance.now(), sentSeq: state.self.ack, connected: true, lockUntil: 0 };
   activeMode = state.gameMode ?? "classic";
+  loadFrenzyRivals();
   activeModeLevel = state.modeLevel ?? 1;
-  rushDurationMs = (state.rushSeconds ?? 45) * 1000;
   onlineTransitionBanner = formatModeBanner(activeMode, (state.round ?? 0) > 0);
   activeBoard = popRules.getBoard(state.self.boardId);
   stageIndex = state.self.stage;
-  activeSessionIndex = stageIndex;
   activeTargets = new Set(state.self.targets ?? []);
   activeColorPair = state.self.colorPair ?? null;
+  decoyColors = state.self.decoyColors ?? {};
   activeSpillOrder = state.self.spillOrder ?? [];
-  frenzyLives = state.self.lives ?? frenzyMaxLives;
+  run = { ...popRules.createRunState(activeMode), ...state.self };
+  popPanels.consumeMatchBooster(run.booster, state.matchId);
+  renderGameplayLives();
   applyOnlineSessionHeader();
   gameplayStartedAt = performance.now();
   syncOnlineGameplay(state);
@@ -1106,7 +1208,11 @@ function startOnlineGameplay(state) {
 
 function syncOnlineGameplay(state) {
   if (!onlineGameplay || onlineGameplay.state.matchId !== state.matchId || gameplayStartedAt === null) return;
-  if (!onlineGameplay.connected) onlineGameplay.sentSeq = state.self.ack;
+  if (!onlineGameplay.connected) {
+    onlineGameplay.sentSeq = state.self.ack;
+    onlineGameplay.pendingSkill = null;
+    onlineGameplay.pendingReset = null;
+  }
   const roundChanged = (state.round ?? 0) !== onlineGameplay.round;
   onlineGameplay.round = state.round ?? 0;
   onlineGameplay.state = state;
@@ -1115,61 +1221,77 @@ function syncOnlineGameplay(state) {
 
   activeMode = state.gameMode ?? activeMode;
   activeModeLevel = state.modeLevel ?? activeModeLevel;
-  rushDurationMs = (state.rushSeconds ?? 45) * 1000;
   if (roundChanged) {
     onlinePlayShown = false;
     onlinePlayBannerUntil = 0;
     onlineSpillKey = "";
     clearSpillTimers();
     clearGameplayCountdown();
-    setPopRushReadyState(false, { label: "Pop Rush", showBanner: false });
+    setPopRushReadyState(false, { label: "POP IT!", showBanner: false });
     onlineTransitionBanner = formatModeBanner(activeMode, true);
   }
   if (state.self.boardId) activeBoard = popRules.getBoard(state.self.boardId);
   for (const player of state.scores) {
+    setGameplayIdentity(gameplayPlayerStates[player.seat], player);
     Object.assign(gameplayPlayerStates[player.seat], {
       cleared: player.cleared,
       totalCleared: player.totalCleared ?? player.cleared,
       score: player.score ?? 0,
       targetCount: player.targetCount ?? activeBoard.targetCount,
       reachedAt: player.reachedAt,
+      forfeit: Boolean(player.forfeit),
     });
   }
   renderGameplayScores();
   if (roundChanged || state.self.ack >= onlineGameplay.sentSeq || state.phase === "finished") {
     const stageChanged = roundChanged || stageIndex !== state.self.stage || gameplayGrid.dataset.builtBoard !== activeBoard.id;
     stageIndex = state.self.stage;
-    activeSessionIndex = stageIndex;
-    activeTargets = new Set(state.self.targets ?? []);
+      activeTargets = new Set(state.self.targets ?? []);
     activeColorPair = state.self.colorPair ?? null;
+    decoyColors = state.self.decoyColors ?? {};
     activeSpillOrder = state.self.spillOrder ?? [];
-    frenzyLives = state.self.lives ?? frenzyMaxLives;
+    const previousMistakes = run.penalties ?? 0;
+    const previousFlow = run.flow;
+    const previousLives = run.lives;
+    const previousTier = popRules.getFrenzyTier(run.streak).streak;
+    run = { ...popRules.createRunState(activeMode), ...state.self };
     onlineGameplay.lockUntil = state.self.lockUntil;
+    if (run.penalties > previousMistakes) showWrongFeedback(`Wrong pop · −5 per miss${run.lives === null ? "" : ` · ${run.lives} lives left`}`);
+    if (run.lives !== previousLives) renderGameplayLives();
+    if (activeMode === "frenzy" && run.streak > previousTier) announceFrenzyTier(previousTier, performance.now());
+    if (activeMode === "sequence" && run.flow > previousFlow) playFlowFeedback(run.flow, run.lastFlowCell);
+    if (state.self.ack >= onlineGameplay.pendingReset || roundChanged) onlineGameplay.pendingReset = null;
+    const topUpAccepted = onlineGameplay.pendingTopUp !== undefined && run.coinsSpent > onlineGameplay.pendingTopUp;
+    if (state.self.ack >= onlineGameplay.pendingSkill || roundChanged) {
+      delete onlineGameplay.pendingTopUp;
+      onlineGameplay.pendingSkill = null;
+    }
+    if (popPanels.settleMatchSkillCoins(state.matchId, state.self.coinsSpent ?? 0, topUpAccepted)) playGameplaySound(coinSound);
 
     if (stageChanged) {
       clearSpillTimers();
-      setPopRushReadyState(false, { label: "Pop Rush", showBanner: false });
+      setPopRushReadyState(false, { label: "POP IT!", showBanner: false });
     }
     applyOnlineSessionHeader();
 
     const pushedSet = new Set(state.self.pushed ?? []);
+    const wrongPushed = new Set(state.self.wrongPushed ?? []);
     for (const cell of gameplayCells) {
       const prevState = cell.state;
       const nextState = pushedSet.has(cell.index) ? "pushed" : activeTargets.has(cell.index) ? "on" : "off";
       cell.state = nextState;
-      const shouldRaise = !stageChanged && (
+      cell.mistake = wrongPushed.has(cell.index);
+      const shouldRaise = (
         (prevState === "pushed" && nextState !== "pushed") ||
         ((activeMode === "sequence" || activeMode === "frenzy") && prevState === "off" && nextState === "on")
       );
       applyCellVisual(cell, { raise: shouldRaise });
     }
 
-    stageCleared = activeMode === "frenzy" ? state.self.cleared : pushedSet.size;
-    renderPopPower();
   }
 
   if (state.phase === "finished") {
-    renderGameplayTime(state.finishedAt - state.startsAt);
+    renderGameplayTime(0);
     finishGameplayMatch(state.winner === null ? null : gameplayPlayerStates[state.winner]);
   } else {
     updateOnlineGameplay(performance.now());
@@ -1183,124 +1305,230 @@ function pauseOnlineGameplay() {
 }
 
 function stopGameplayMatch() {
+  topUpOffer.hidden = true;
+  previousFlowCell = null;
+  sessionDeadline = null;
   if (gameplayFrame !== null) cancelAnimationFrame(gameplayFrame);
   if (wrongPopTimer !== null) clearTimeout(wrongPopTimer);
   clearSpillTimers();
   clearGameplayCountdown();
   gameplayFrame = null;
   gameplayStartedAt = null;
+  refreshGameplaySkills(false);
   wrongPopTimer = null;
   gameplayOnlineStatus.hidden = true;
   gameplayLivesEl.hidden = true;
-  setPopRushReadyState(false, { label: "Pop Rush", showBanner: false });
+  setPopRushReadyState(false, { label: "POP IT!", showBanner: false });
   setWrongPopFeedback(false);
+  warningLabel.hidden = true;
+  gameplayScreen.removeAttribute("data-attack-warning");
+  gameplayScreen.removeAttribute("data-blocked-attack");
+  gameplayScreen.removeAttribute("data-shield");
+  gameplayGrid.removeAttribute("data-fog");
+  gameplayGrid.removeAttribute("data-reverse");
+  gameplayGrid.removeAttribute("data-golden");
+  frenzyMarker.hidden = true;
   if (gameplayResults.open) gameplayResults.close();
+}
+
+function tickPracticeBots(now) {
+  if (run.incoming && now >= run.incoming.at) {
+    const { skill } = run.incoming;
+    delete run.incoming;
+    const result = popRules.landAttack(run, skill, now, activeBoard.cellCount, [...activeTargets],
+      gameplayCells.filter((cell) => cell.state === "pushed").map((cell) => cell.index));
+    if (result.blocked) {
+      run.blockedAt = now;
+      gameplayBoardStatus.textContent = "BLOCKED!";
+    }
+    if (result.targets) {
+      if (activeMode === "color_hunt") popRules.moveDecoyColors(decoyColors, [...activeTargets], result.targets);
+      activeTargets = new Set(result.targets);
+      for (const cell of gameplayCells) {
+        if (cell.state === "pushed") continue;
+        cell.state = activeMode !== "memory" && activeTargets.has(cell.index) ? "on" : "off";
+        applyCellVisual(cell);
+      }
+      if (activeMode === "memory") {
+        activeSpillOrder = result.targets;
+        startMemorySpill();
+      }
+    }
+  }
+
+  let changed = false;
+  const level = popRules.getGameLevel(activeMode, activeModeLevel);
+  const perSession = activeMode === "sequence" ? activeBoard.cellCount : popRules.targetSize(activeBoard.cellCount, level.ratio);
+  const rivals = [{ player: gameplayHuman, run }, ...botRuntimes.filter((bot) => !bot.completed && bot.run.lives !== 0)];
+  for (const bot of botRuntimes) {
+    const { player, difficulty, skills, run: botRun } = bot;
+    if (bot.completed || botRun.lives === 0) continue;
+    const config = popRules.botLevels[difficulty];
+    if (bot.deadline === undefined) {
+      startBotSession(bot, gameplayStartedAt, perSession);
+    }
+    if (now >= bot.deadline) {
+      if (activeMode === "frenzy") {
+        popRules.scoreWrong(botRun, 1, now);
+        bot.deadline = now + popRules.getFrenzyTier(botRun.streak).durationMs;
+      } else {
+        finishBotSession(bot, now, perSession);
+      }
+      player.score = botRun.score;
+      changed = true;
+      if (bot.completed || botRun.lives === 0) continue;
+    }
+    if (now < bot.playFrom) continue;
+    const incoming = botRun.incoming;
+    if (incoming && !incoming.reacted && incoming.at - now <= 300 && now < incoming.at) {
+      incoming.reacted = true;
+      const chance = config.warningShield;
+      if (skills.includes("shield") && Math.random() < chance &&
+          popRules.canCastSkill(botRun, "shield", now, { mode: activeMode, targets: 1, rivals: true })) {
+        popRules.castSkill(botRun, "shield", now);
+      }
+    }
+    if (incoming && now >= incoming.at) {
+      delete botRun.incoming;
+      const result = popRules.landAttack(botRun, incoming.skill, now, activeBoard.cellCount, [], []);
+      if (result.targets) bot.nextPop = Math.max(bot.nextPop, now + 650);
+    }
+    const targets = activeMode === "frenzy" ? perSession : perSession - bot.sessionPops;
+    if (!targets && activeMode !== "frenzy") {
+      finishBotSession(bot, now, perSession);
+      changed = true;
+      continue;
+    }
+    const attackable = rivals.filter((rival) => rival.player !== player && !rival.run.incoming &&
+      !(rival.run.lastAttackedAt + popRules.attackGraceMs > now));
+    attackable.sort((a, b) => b.player.score - a.player.score);
+    const enemy = difficulty === "Medium" ? attackable[Math.floor(Math.random() * attackable.length)] : attackable[0];
+    const chosen = popRules.chooseBotSkill(bot, now, { mode: activeMode, targets, rivals: Boolean(enemy) });
+    const blocked = botRun.effects.paralyzeUntil > now;
+    let hits = 0;
+    if (chosen && (!blocked || chosen === "cleanse")) {
+      popRules.castSkill(botRun, chosen, now);
+      if (skillDefinitions[chosen].kind === "attack") enemy.run.incoming = { skill: chosen, at: now + popRules.attackWarningMs };
+      if (chosen === "blast") hits = 3;
+    }
+    if (!blocked && now >= bot.nextPop) {
+      bot.nextPop = now + popRules.botDelay(config.delay);
+      if (botRun.effects.magnet) {
+        delete botRun.effects.magnet;
+        hits = Math.max(hits, targets);
+      } else if (Math.random() >= config.accuracy || (activeMode === "frenzy" && botRun.streak >= config.maxStreak)) {
+        popRules.scoreWrong(botRun, 1, now);
+        if (activeMode === "frenzy") bot.deadline = now + popRules.getFrenzyTier(botRun.streak).durationMs;
+        changed = true;
+      } else hits = Math.max(1, hits);
+    }
+    if (activeMode !== "frenzy") hits = Math.min(hits, targets);
+    else if (Number.isFinite(config.maxStreak)) hits = Math.min(hits, config.maxStreak - botRun.streak);
+    for (let i = 0; i < hits; i += 1) popRules.scoreCorrect(botRun, activeMode, now);
+    if (hits) {
+      bot.cleared += hits;
+      bot.sessionPops += hits;
+      if (activeMode === "frenzy") bot.deadline = now + popRules.getFrenzyTier(botRun.streak).durationMs;
+      player.reachedAt = now - gameplayStartedAt;
+      changed = true;
+    }
+    player.cleared = bot.cleared;
+    player.score = botRun.score;
+  }
+  if (changed) renderGameplayScores();
+}
+
+function startBotSession(bot, now, targets) {
+  const memoryDelay = activeMode === "memory" ? popRules.memorySpillDuration(activeModeLevel, targets) : 0;
+  bot.sessionPops = 0;
+  bot.playFrom = now + memoryDelay;
+  bot.deadline = bot.playFrom + stageDuration();
+  bot.nextPop = bot.playFrom + popRules.botDelay(popRules.botLevels[bot.difficulty].delay);
+}
+
+function finishBotSession(bot, now, targets) {
+  const missed = Math.max(0, targets - bot.sessionPops);
+  if (missed) popRules.scoreWrong(bot.run, missed, now);
+  popRules.resetSessionScoring(bot.run, activeMode, !missed);
+  bot.player.score = bot.run.score;
+  if (bot.run.completedSessions >= popRules.getGameLevel(activeMode, activeModeLevel).sessions) bot.completed = true;
+  else startBotSession(bot, now, targets);
 }
 
 function updateGameplayMatch(now) {
   if (gameplayStartedAt === null) return false;
   if (onlineGameplay) return updateOnlineGameplay(now);
-  const elapsed = Math.max(0, now - gameplayStartedAt);
 
-  if (activeMode === "classic" || activeMode === "rush") {
-    const limitMs = activeMode === "rush" ? rushDurationMs : matchDurationMs;
-    const activeTime = Math.min(elapsed, limitMs);
-    renderGameplayTime(activeTime);
-
-    let scoresChanged = false;
-    for (const [index, bot] of gameplayOpponents.entries()) {
-      const baseInterval = gameplayPlayers[index + 1].botIntervalMs * (popRules.targetCount / activeBoard.targetCount);
-      if (activeMode === "rush") {
-        const cleared = Math.floor(activeTime / baseInterval);
-        const botScore = cleared * 10 + Math.floor(cleared / 7) * 50;
-        if (bot.cleared === cleared) continue;
-        bot.cleared = cleared;
-        bot.score = botScore;
-        bot.reachedAt = cleared * baseInterval;
-        scoresChanged = true;
-      } else {
-        const cleared = Math.min(activeBoard.targetCount, Math.floor(activeTime / baseInterval));
-        if (bot.cleared === cleared) continue;
-        bot.cleared = cleared;
-        bot.reachedAt = cleared * baseInterval;
-        scoresChanged = true;
-      }
-    }
-    if (scoresChanged) {
-      const [leader] = renderGameplayScores();
-      if (activeMode === "classic" && leader.cleared === leader.targetCount && leader !== gameplayHuman) {
-        switchGameplayMode("memory", true, { preserveTotals: true, isTransition: true });
-        return false;
-      }
-    }
-
-    if (elapsed >= limitMs) {
-      const nextId = popRules.getNextMode(activeMode);
-      if (nextId) {
-        switchGameplayMode(nextId, true, { preserveTotals: true, isTransition: true });
-        return false;
-      }
-      finishGameplayMatch(null, activeMode === "rush" ? `${modeConfig.rushSeconds}s Rush complete!` : "Time is up.");
-      return false;
-    }
-    return true;
-  }
-
-  // Memory, Sequence, Color Hunt, Frenzy count-up elapsed clock
-  renderGameplayTime(elapsed);
-  let scoresChanged = false;
-  for (const [index, bot] of gameplayOpponents.entries()) {
-    const interval = gameplayPlayers[index + 1].botIntervalMs * 1.1;
-    const rawCleared = Math.floor(elapsed / interval);
+  renderGameplayTime(sessionDeadline === null ? stageDuration() : sessionDeadline - now);
+  if (sessionDeadline !== null && now >= sessionDeadline) {
     if (activeMode === "frenzy") {
-      // Bots play alongside in Frenzy up to score comparison
-      const botScore = rawCleared * 10;
-      if (bot.cleared === rawCleared) continue;
-      bot.cleared = rawCleared;
-      bot.score = botScore;
-      bot.reachedAt = rawCleared * interval;
-      scoresChanged = true;
+      applyWrongPopPenalty(now, null, 1, "Time up");
+      if (gameplayStartedAt !== null) startLocalSessionClock(now);
     } else {
-      const cleared = Math.min(bot.targetCount, rawCleared);
-      if (bot.cleared === cleared) continue;
-      bot.cleared = cleared;
-      bot.reachedAt = cleared * interval;
-      scoresChanged = true;
+      completeLocalSession(now);
     }
+    return false;
   }
-  if (scoresChanged) renderGameplayScores();
-  return true;
+
+  tickPracticeBots(now);
+  if (gameplayStartedAt === null) return false;
+  updateSkillVisuals(now);
+  const disabled = run.effects.paralyzeUntil > now;
+  if (!spillActive && gameplayCells[0]?.bubble.disabled !== disabled) setGameplayBoardDisabled(disabled);
+  gameplayOnlineStatus.hidden = !disabled;
+  if (disabled) gameplayOnlineStatus.textContent = "Paralyzed · Board frozen";
+  return !disabled;
 }
 
 function tickGameplayMatch(now) {
   const playing = updateGameplayMatch(now);
-  if (playing || (onlineGameplay && gameplayStartedAt !== null)) {
+  refreshGameplaySkills(playing, now);
+  if (gameplayStartedAt !== null) {
     gameplayFrame = requestAnimationFrame(tickGameplayMatch);
   }
 }
 
 function finishGameplayMatch(finisher, customReason = null) {
   const finishMode = activeMode;
-  const isScore = isScoreMode(finishMode);
+  const finishedAt = onlineGameplay?.state.self?.finishedAt ?? onlineGameplay?.state.finishedAt ?? performance.now();
+  const elapsed = finishedAt - (onlineGameplay?.state.startsAt ?? gameplayStartedAt);
   stopGameplayMatch();
   const ranked = renderGameplayScores();
   const human = onlineGameplay ? gameplayPlayerStates[onlineGameplay.state.you] : gameplayHuman;
-  const playerRank = rankLabels[ranked.indexOf(human)];
+  const humanRank = ranked.indexOf(human) + 1;
+  const playerRank = rankLabels[humanRank - 1];
   const totalPops = Math.max(human.totalCleared ?? 0, human.cleared);
-  const isMarathon = totalPops > human.cleared || finishMode === "frenzy";
-  const progress = progressPercent(human.cleared, human.targetCount);
   const modeMeta = popRules.getMode(finishMode);
-  const reason = customReason ?? (finisher ? `${finisher.name} won ${isMarathon ? "Pop Rush Marathon" : modeMeta.name}!` : "All modes complete.");
-  gameplayResultsSummary.textContent = `${reason} You placed ${playerRank}${isScore || isMarathon ? ` with ${human.score} points.` : ` with ${progress}% progress.`}`;
-  resultPops.textContent = isScore || isMarathon ? `${totalPops}` : `${human.cleared}/${human.targetCount}`;
-  resultProgress.textContent = isScore || isMarathon ? `${human.score} pts` : `${progress}%`;
+  const reason = customReason ?? (finisher ? `${finisher.name} won ${modeMeta.name}!` : `${modeMeta.name} complete.`);
+  const completed = completedLevel || Boolean(onlineGameplay?.state.self?.completed);
+  const matchId = onlineGameplay?.state.matchId;
+  const rewardScale = !onlineGameplay && gameplayOpponents.length ? 0.5 : 1;
+  const coins = totalPops ? Math.floor((80 + totalPops * 2) * rewardScale * (run.weekend ? 2 : 1)) : 0;
+  const xp = Math.floor((30 + totalPops) * rewardScale * (run.weekend ? 1.5 : 1) * (run.xpBoost ? 1.5 : 1));
+  popPanels.recordModeResult(finishMode, { score: human.score, level: activeModeLevel, elapsed, streak: run.bestStreak,
+    completed, mistakes: run.mistakes, penalties: run.penalties, feverBoxes: run.feverBoxes, totalPops, rank: humanRank,
+    completedSessions: run.completedSessions,
+    perfectSessions: run.perfectSessions, skillUses: run.skillUses, skillCategories: run.skillCategories,
+    won: onlineGameplay ? onlineGameplay.state.winner === onlineGameplay.state.you : humanRank === 1 && completed,
+  }, { coins, xp }, matchId);
+  if (matchId) popPanels.refreshLiveEvents();
+  gameplayResultsSummary.textContent = `${reason} You placed ${playerRank} with ${human.score} points.`;
+  resultPops.textContent = totalPops;
+  resultProgress.textContent = `${human.score} pts`;
   resultRank.textContent = playerRank;
+  const rewards = [coins ? `+${coins} Coins` : "", xp ? `+${xp} XP` : "",
+    run.feverBoxes ? `+${run.feverBoxes} Fever Box` : ""].filter(Boolean);
+  if (completed && finishMode === "sequence") {
+    rewards.push(`${run.mistakes ? 1 : elapsed < popRules.getGameLevel(finishMode, activeModeLevel).sessions * 5000 ? 3 : 2} ★`);
+  }
+  const rewardText = document.querySelector("#results-reward");
+  rewardText.textContent = rewards.join(" · ");
+  rewardText.hidden = !rewards.length;
 
-  const nextId = !onlineGameplay ? popRules.getNextMode(finishMode) : null;
+  const nextId = !onlineGameplay && completedLevel && activeModeLevel < modeMeta.maxLevel ? finishMode : null;
   if (nextId) {
-    const nextMeta = popRules.getMode(nextId);
     nextModeButton.hidden = false;
-    nextModeButton.textContent = `Next Mode: ${nextMeta.shortName}`;
+    nextModeButton.textContent = `Next Level: ${activeModeLevel + 1}`;
     nextModeHandler = () => {
       setSelectedGameMode(nextId);
       startGameplayMatch(nextId);
@@ -1325,9 +1553,7 @@ function finishGameplayMatch(finisher, customReason = null) {
     entry.querySelector(".results-row-rank").textContent = index + 1;
     entry.querySelector("img").src = player.card.querySelector("img").src;
     entry.querySelector(".results-player-name").textContent = player.name;
-    entry.querySelector(".results-player-score strong").textContent = isScore
-      ? `${player.score} pts`
-      : `${progressPercent(player.cleared, player.targetCount)}%`;
+    entry.querySelector(".results-player-score strong").textContent = `${player.score} pts`;
     return entry;
   }));
   setGameplayBoardDisabled(true);
@@ -1407,55 +1633,53 @@ document.querySelector("#gameplay-results-back").addEventListener("click", (even
 });
 
 function isPopRushReady() {
-  if (gameplayStartedAt === null || spillActive || countdownActive) return false;
-  if (onlineGameplay) {
-    const selfPlay = onlineGameplay.state.self;
-    if (!selfPlay || !selfPlay.alive || selfPlay.stage !== stageIndex) return false;
-    if (activeTargets.size > 0 || (activeMode === "sequence" && selfPlay.targets?.length > 0)) return false;
-    if (activeMode === "rush") return true;
-    const stageCount = selfPlay.stageCount ?? 1;
-    return stageIndex < stageCount - 1;
-  }
-  if (transitionToNextMode) return true;
-  if (activeMode === "classic") {
-    return stageIndex < activeStages.length - 1 && activeTargets.size === 0;
-  }
-  if (activeMode === "rush") {
-    return activeTargets.size === 0;
-  }
-  if (activeMode === "memory" || activeMode === "sequence" || activeMode === "color_hunt") {
-    return activeTargets.size === 0 && activeSessionIndex < 9;
-  }
-  return false;
+  if (gameplayStartedAt === null || spillActive || countdownActive || activeMode === "frenzy" || activeTargets.size) return false;
+  return !onlineGameplay || Boolean(onlineGameplay.state.self?.alive && onlineGameplay.state.self.stage === stageIndex);
 }
 
-function advanceGameplayStage(restoreFocus = false) {
-  if (!isPopRushReady() || !updateGameplayMatch(performance.now())) return;
-  if (onlineGameplay && !sendOnlineGameplayInput("rush")) return;
-  playGameplaySound(reloadSound);
-
-  if (transitionToNextMode) {
-    switchGameplayMode(transitionToNextMode, true, { preserveTotals: true, isTransition: true });
-    if (restoreFocus) focusNextGameplayBubble();
-    return;
-  }
-
+function advanceGameplayStage(restoreFocus = false, event = null, gesture = false) {
+  const now = performance.now();
+  if (countdownActive || spillActive || activeMode === "frenzy" || !updateGameplayMatch(now)) return;
+  const missed = activeTargets.size;
+  if (missed && !event) return;
   if (onlineGameplay) {
-    stageIndex += 1;
-    activeSessionIndex = stageIndex;
-    clearSpillTimers();
+    if (onlineGameplay.pendingReset || !sendOnlineGameplayInput("rush")) return;
+    onlineGameplay.pendingReset = onlineGameplay.sentSeq;
     setPopRushReadyState(false, { enabled: false });
     setGameplayBoardDisabled(true);
+    if (missed) playGameplayInputSound(incorrectSound, event);
+    else playGameplaySound(reloadSound);
     return;
   }
 
-  if (activeMode === "classic" || activeMode === "rush") {
-    stageIndex += 1;
-  } else {
-    activeSessionIndex += 1;
+  completeLocalSession(now, event, gesture);
+  if (restoreFocus && activeMode !== "memory" && gameplayStartedAt !== null) focusNextGameplayBubble();
+}
+
+function completeLocalSession(now, event = null, gesture = false) {
+  const initialMisses = activeTargets.size;
+  const missed = activeMode === "sequence" && initialMisses
+    ? gameplayCells.filter((cell) => cell.state !== "pushed").length : initialMisses;
+  if (missed) {
+    applyWrongPopPenalty(now, event, missed, event ? undefined : "Time up");
+    if (gameplayStartedAt === null) return;
+  } else playGameplaySound(reloadSound);
+
+  popRules.resetSessionScoring(run, activeMode, !missed);
+  gameplayHuman.score = run.score;
+  renderGameplayScores();
+
+  const meta = popRules.getMode(activeMode);
+  if (stageIndex + 1 >= popRules.getGameLevel(activeMode, activeModeLevel).sessions) {
+    completedLevel = true;
+    if (activeModeLevel < meta.maxLevel) setModeLevel(activeMode, activeModeLevel + 1);
+    finishGameplayMatch(null, `${meta.name} Level ${activeModeLevel} complete!`);
+    return;
   }
+  stageIndex += 1;
+  resetWave = gesture;
   setupSessionState(true);
-  if (restoreFocus && activeMode !== "memory") focusNextGameplayBubble();
+  resetWave = false;
 }
 
 popRushButton.addEventListener("click", (event) => {
@@ -1464,14 +1688,7 @@ popRushButton.addEventListener("click", (event) => {
     if (gameplayResultsOrder.childElementCount && !gameplayResults.open) gameplayResults.showModal();
     return;
   }
-  if (isPopRushReady()) {
-    advanceGameplayStage(event.detail === 0);
-    return;
-  }
-  const now = performance.now();
-  if (spillActive || wrongPopTimer !== null || !activeTargets.size || !updateGameplayMatch(now)) return;
-  if (onlineGameplay && !sendOnlineGameplayInput("rush")) return;
-  applyWrongPopPenalty(now, event);
+  advanceGameplayStage(event.detail === 0, event);
 });
 
 function motionVector(sample) {
@@ -1481,7 +1698,7 @@ function motionVector(sample) {
 }
 
 function handleGameplayShake(event) {
-  if (!shakeAllowed || !isPopRushReady()) return;
+  if (modeConfig.resetControl !== "motion" || !shakeAllowed || !isPopRushReady()) return;
   let acceleration = motionVector(event.acceleration);
   if (!acceleration) {
     const withGravity = motionVector(event.accelerationIncludingGravity);
@@ -1502,14 +1719,59 @@ function handleGameplayShake(event) {
   const direction = acceleration.reduce((dot, value, axis) => dot + value * shakePulse.acceleration[axis], 0);
   if (now - shakePulse.at >= shakeMinIntervalMs && direction < -0.5 * strength * shakePulse.strength) {
     advanceGameplayStage();
+    navigator.vibrate?.(45);
   }
 }
 
 if (motionEvent) window.addEventListener("devicemotion", handleGameplayShake);
+let tiltOrigin = null;
+let tiltArmed = false;
+window.addEventListener("deviceorientation", (event) => {
+  if (modeConfig.resetControl !== "motion" || !shakeAllowed || !isPopRushReady() || !Number.isFinite(event.beta)) {
+    tiltOrigin = null;
+    tiltArmed = false;
+    return;
+  }
+  tiltOrigin ??= event.beta;
+  const delta = Math.abs(event.beta - tiltOrigin);
+  if (delta > 27) tiltArmed = true;
+  if (tiltArmed && delta < 10) {
+    tiltArmed = false;
+    advanceGameplayStage();
+    navigator.vibrate?.(40);
+  }
+});
+
+gameplayGrid.addEventListener("touchstart", (event) => {
+  if (modeConfig.resetControl !== "swipe" || !isPopRushReady()) return;
+  const [first, second] = [...event.touches];
+  boardGesture ??= { x: first.clientX, y: first.clientY };
+  if (second) boardGesture.distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+}, { passive: true });
+
+gameplayGrid.addEventListener("touchmove", (event) => {
+  if (!boardGesture || !isPopRushReady()) return;
+  const [first, second] = [...event.touches];
+  const swipe = boardGesture.y - first.clientY > 50 && Math.abs(first.clientX - boardGesture.x) < 90;
+  const pinch = second && boardGesture.distance && Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY) - boardGesture.distance > 45;
+  if (!(swipe || pinch)) return;
+  if (event.cancelable) event.preventDefault();
+  boardGesture = null;
+  advanceGameplayStage(false, null, true);
+  [3, 2, 1].forEach((note, index) => setTimeout(() => playStreakNote(note), index * 55));
+  navigator.vibrate?.([10, 30, 10, 30, 15]);
+}, { passive: false });
+
+for (const type of ["touchend", "touchcancel"]) {
+  gameplayGrid.addEventListener(type, () => { boardGesture = null; }, { passive: true });
+}
 enableShakeButton.addEventListener("click", async () => {
   enableShakeButton.disabled = true;
   try {
     shakeAllowed = await motionEvent.requestPermission() === "granted";
+    if (typeof window.DeviceOrientationEvent?.requestPermission === "function") {
+      window.DeviceOrientationEvent.requestPermission().catch(() => {});
+    }
   } catch {
     shakeAllowed = false;
   }
@@ -1522,6 +1784,7 @@ enableShakeButton.addEventListener("click", async () => {
 
 document.querySelector("#gameplay-play-again").addEventListener("click", () => {
   if (onlineGameplay) {
+    if (onlineGameplay.state.mode !== "private") multiplayer.leave();
     navigate(document.querySelector("#gameplay-back").hash);
     return;
   }

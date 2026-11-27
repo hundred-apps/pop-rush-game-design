@@ -10,23 +10,29 @@
     <title>Pop Rush</title>
     <link rel="stylesheet" href="tailwind.css" />
     <link rel="stylesheet" href="styles.css?v=10" />
-    <link rel="stylesheet" href="gameplay.css?v=60" />
-    <link rel="stylesheet" href="panels.css?v=18" />
-    <script src="gameplay-rules.js?v=5" defer></script>
-    <script src="gameplay.js?v=32" defer></script>
-    <script src="multiplayer.js?v=5" defer></script>
-    <script src="panels.js?v=12" defer></script>
-    <script src="app.js?v=26" defer></script>
+    <link rel="stylesheet" href="gameplay.css?v=65" />
+    <link rel="stylesheet" href="panels.css?v=21" />
+    <script src="gameplay-rules.js?v=10" defer></script>
+    <script src="gameplay.js?v=39" defer></script>
+    <script src="multiplayer.js?v=7" defer></script>
+    <script src="panels.js?v=16" defer></script>
+    <script src="app.js?v=31" defer></script>
   </head>
   <body>
     <div class="startup-loader" id="startup-loader" role="status">
-      <img src="pages/home/branding/logo-hd.png" alt="" width="1448" height="1086" fetchpriority="high" />
+      <img
+        src="pages/home/branding/logo-hd.png"
+        alt=""
+        width="1448"
+        height="1086"
+        fetchpriority="high"
+      />
       <div class="startup-loader-track" aria-hidden="true"></div>
       <span>Loading Pop Rush…</span>
     </div>
     <audio
       id="game-backsound"
-      src="sounds/backsound-poprush.mp3"
+      src="sounds/backsound-poprush-2.mp3"
       preload="auto"
       loop
       hidden
@@ -58,7 +64,7 @@
                   <img src="pages/home/hud/avatar_luna.png" alt="" />
                   <span class="profile-stars" aria-hidden="true">★★★</span>
                 </span>
-                <span id="hud-profile-level">Lv.12</span>
+                <span id="hud-profile-level">Lv.1</span>
               </button>
               <button
                 class="hud-badge wallet"
@@ -103,6 +109,14 @@
             >
               <img src="pages/home/hud/mail.png" alt="" />
               <span class="mail-count" aria-hidden="true">1</span>
+            </button>
+            <button
+              class="spot deck-shortcut"
+              style="--x: 146; --y: 58; --w: 26; --h: 15"
+              type="button"
+              data-panel="deck"
+            >
+              Deck
             </button>
           </header>
 
@@ -418,6 +432,14 @@
             >
               <span aria-hidden="true">⛶</span>
             </button>
+            <button
+              class="spot deck-shortcut"
+              style="--x: 4; --y: 39; --w: 22; --h: 18"
+              type="button"
+              data-panel="deck"
+            >
+              Deck
+            </button>
           </header>
 
           <ul aria-label="Players">
@@ -457,25 +479,80 @@
             </div>
             <div class="room-mode-picker" id="room-mode-picker" hidden>
               <div class="room-mode-grid" role="group" aria-label="Game mode">
-                <button class="room-mode-btn" type="button" data-game-mode="classic" aria-pressed="true">Classic</button>
-                <button class="room-mode-btn" type="button" data-game-mode="memory" aria-pressed="false">Memory</button>
-                <button class="room-mode-btn" type="button" data-game-mode="rush" aria-pressed="false">Rush</button>
-                <button class="room-mode-btn" type="button" data-game-mode="sequence" aria-pressed="false">Sequence</button>
-                <button class="room-mode-btn" type="button" data-game-mode="color_hunt" aria-pressed="false">Color</button>
-                <button class="room-mode-btn" type="button" data-game-mode="frenzy" aria-pressed="false">Frenzy</button>
+                <button
+                  class="room-mode-btn"
+                  type="button"
+                  data-game-mode="classic"
+                  aria-pressed="true"
+                >
+                  Classic
+                </button>
+                <button
+                  class="room-mode-btn"
+                  type="button"
+                  data-game-mode="memory"
+                  aria-pressed="false"
+                >
+                  Memory
+                </button>
+                <button
+                  class="room-mode-btn"
+                  type="button"
+                  data-game-mode="rush"
+                  aria-pressed="false"
+                >
+                  Rush
+                </button>
+                <button
+                  class="room-mode-btn"
+                  type="button"
+                  data-game-mode="sequence"
+                  aria-pressed="false"
+                >
+                  Sequence
+                </button>
+                <button
+                  class="room-mode-btn"
+                  type="button"
+                  data-game-mode="color_hunt"
+                  aria-pressed="false"
+                >
+                  Color
+                </button>
+                <button
+                  class="room-mode-btn"
+                  type="button"
+                  data-game-mode="frenzy"
+                  aria-pressed="false"
+                >
+                  Frenzy
+                </button>
               </div>
               <div class="room-mode-options" id="room-mode-options">
-                <div class="room-rush-durations" id="room-rush-durations" role="group" aria-label="Rush duration" hidden>
-                  <button class="room-rush-btn" type="button" data-rush-seconds="30" aria-pressed="false">30s</button>
-                  <button class="room-rush-btn" type="button" data-rush-seconds="45" aria-pressed="true">45s</button>
-                  <button class="room-rush-btn" type="button" data-rush-seconds="60" aria-pressed="false">60s</button>
-                </div>
                 <div class="room-level-stepper" id="room-level-stepper" hidden>
-                  <button class="room-step-btn" id="room-level-prev" type="button" aria-label="Previous level">◀</button>
-                  <span class="room-level-label" id="room-level-label">Lv. 1 / 100</span>
-                  <button class="room-step-btn" id="room-level-next" type="button" aria-label="Next level">▶</button>
+                  <button
+                    class="room-step-btn"
+                    id="room-level-prev"
+                    type="button"
+                    aria-label="Previous level"
+                  >
+                    ◀
+                  </button>
+                  <span class="room-level-label" id="room-level-label"
+                    >Lv. 1 / 15</span
+                  >
+                  <button
+                    class="room-step-btn"
+                    id="room-level-next"
+                    type="button"
+                    aria-label="Next level"
+                  >
+                    ▶
+                  </button>
                 </div>
-                <p class="room-mode-hint" id="room-mode-hint">4 stages · Flows into Memory</p>
+                <p class="room-mode-hint" id="room-mode-hint">
+                  5 sessions · 20% initial targets
+                </p>
               </div>
             </div>
           </section>
@@ -540,7 +617,7 @@
               class="spot gameplay-stage"
               style="--x: 27; --y: 2; --w: 78; --h: 26"
             >
-              <h2 id="gameplay-title" tabindex="-1">Stage 1/4</h2>
+              <h2 id="gameplay-title" tabindex="-1">Classic Lv.1 · 1/5</h2>
               <p id="gameplay-board-name">Sapphire Blue</p>
             </div>
             <div
@@ -574,7 +651,13 @@
                 width="1254"
                 height="1254"
               />
-              <img class="gameplay-leader-portrait" alt="" decoding="async" width="512" height="512" />
+              <img
+                class="gameplay-leader-portrait"
+                alt=""
+                decoding="async"
+                width="512"
+                height="512"
+              />
               <div class="gameplay-score-info">
                 <span class="gameplay-name"></span>
                 <span class="gameplay-level sr-only"></span>
@@ -623,13 +706,36 @@
               </button>
             </div>
           </div>
+          <p
+            id="gameplay-attack-warning"
+            class="gameplay-attack-warning"
+            role="status"
+            hidden
+          ></p>
           <p id="gameplay-board-status" class="sr-only" role="status"></p>
 
           <div class="gameplay-board">
-            <p class="gameplay-rule gameplay-target-indicator" id="gameplay-rule">
+            <span
+              class="gameplay-lives"
+              id="gameplay-lives"
+              aria-label="Lives remaining"
+              hidden
+            ></span>
+            <p
+              id="gameplay-frenzy-marker"
+              class="gameplay-frenzy-marker"
+              hidden
+            >
+              <img alt="" hidden /><span></span>
+            </p>
+            <p
+              class="gameplay-rule gameplay-target-indicator"
+              id="gameplay-rule"
+            >
               <span class="gameplay-rule-bubble" aria-hidden="true"></span>
-              <span id="gameplay-rule-text" class="sr-only">Pop only <strong>GREEN!</strong></span>
-              <span class="gameplay-lives" id="gameplay-lives" aria-label="Lives remaining" hidden></span>
+              <span id="gameplay-rule-text" class="sr-only"
+                >Pop only <strong>GREEN!</strong></span
+              >
             </p>
             <div
               class="gameplay-bubbles grid"
@@ -640,63 +746,29 @@
           </div>
 
           <footer class="spot gameplay-controls" style="--x: 0; --w: 178">
-            <div class="gameplay-power">
-              <img class="gameplay-power-icon" src="pages/gameplay/dock/skill-rush.png" alt="" width="256" height="256" />
-              <div class="gameplay-power-label">
-                <span>Pop Power</span>
-                <strong id="gameplay-power-value">0%</strong>
-              </div>
-              <div id="gameplay-power-track" class="gameplay-power-track" role="meter" aria-label="Pop Power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                <span></span>
-              </div>
+            <button type="button" id="gameplay-top-up" hidden></button>
+            <div class="gameplay-coins">
+              <img src="pages/home/hud/coin.png" alt="" />
+              <span>Coins</span>
+              <span id="gameplay-energy">Energy 0%</span>
+              <span id="gameplay-streak" class="gameplay-streak" hidden></span>
+              <strong id="gameplay-coins-value">0</strong>
             </div>
             <div class="gameplay-dock">
-              <ul
-                class="gameplay-abilities grid grid-cols-4"
-                aria-label="Power-ups"
-              >
-                <li class="gameplay-ability gameplay-ability--blast">
-                  <img
-                    src="pages/gameplay/dock/skill-blast.png"
-                    alt=""
-                    width="256"
-                    height="256"
-                  />
-                  <span class="sr-only">Blast</span>
-                </li>
-                <li class="gameplay-ability gameplay-ability--shield">
-                  <img
-                    src="pages/gameplay/dock/skill-shield.png"
-                    alt=""
-                    width="256"
-                    height="256"
-                  />
-                  <span class="sr-only">Shield</span>
-                </li>
-                <li class="gameplay-ability gameplay-ability--dash">
-                  <img
-                    src="pages/gameplay/dock/skill-rush.png"
-                    alt=""
-                    width="256"
-                    height="256"
-                  />
-                  <span class="sr-only">Rush</span>
-                </li>
-                <li class="gameplay-ability gameplay-ability--ice">
-                  <img
-                    src="pages/gameplay/dock/skill-freeze.png"
-                    alt=""
-                    width="256"
-                    height="256"
-                  />
-                  <span class="sr-only">Freeze</span>
-                </li>
-              </ul>
+              <ul class="gameplay-abilities" aria-label="Equipped skills"></ul>
             </div>
             <div class="gameplay-rush-slot" data-ready="false">
-              <button class="gameplay-pop-rush" id="gameplay-pop-rush" type="button" data-mode="rush" disabled>
-                <span id="gameplay-rush-label">Pop Rush</span>
-                <span class="gameplay-rush-caption">Continue to Next Board</span>
+              <button
+                class="gameplay-pop-rush"
+                id="gameplay-pop-rush"
+                type="button"
+                data-mode="rush"
+                disabled
+              >
+                <span id="gameplay-rush-label">POP IT!</span>
+                <span class="gameplay-rush-caption"
+                  >Continue to Next Board</span
+                >
               </button>
             </div>
           </footer>
@@ -708,8 +780,14 @@
           aria-live="assertive"
           hidden
         >
-          <span class="gameplay-countdown-mode" id="gameplay-countdown-mode" hidden></span>
-          <span class="gameplay-countdown-value" id="gameplay-countdown-value">3</span>
+          <span
+            class="gameplay-countdown-mode"
+            id="gameplay-countdown-mode"
+            hidden
+          ></span>
+          <span class="gameplay-countdown-value" id="gameplay-countdown-value"
+            >3</span
+          >
         </div>
       </section>
     </main>
@@ -734,6 +812,26 @@
       </div>
       <button class="send-message mt-4" id="create-private-room" type="button">
         Create Room
+      </button>
+      <label class="text-sm" for="online-queue-mode">Public match mode</label>
+      <select class="room-code-input" id="online-queue-mode">
+        <option value="classic">Classic Hunt</option>
+        <option value="memory">Memory</option>
+        <option value="rush">Rush</option>
+        <option value="sequence">Sequence</option>
+        <option value="color_hunt">Color Hunt</option>
+        <option value="frenzy">Frenzy</option>
+      </select>
+      <select
+        class="room-code-input"
+        id="online-queue-level"
+        aria-label="Online game level"
+      ></select>
+      <button class="send-message mt-4" id="find-online-match" type="button">
+        Find Online Match
+      </button>
+      <button class="send-message mt-4" id="find-ranked-match" type="button">
+        Ranked Match · Lv.15
       </button>
       <form class="mt-4" id="join-private-room">
         <label class="text-sm" for="private-room-code">Room code</label>
@@ -814,15 +912,14 @@
           </li>
           <li>
             <img src="pages/home/hud/gem.png" alt="" />
-            <div>
-              <strong id="results-progress"></strong><span>Progress</span>
-            </div>
+            <div><strong id="results-progress"></strong><span>Score</span></div>
           </li>
           <li>
             <span class="results-rank-symbol" aria-hidden="true">#</span>
             <div><strong id="results-rank"></strong><span>Rank</span></div>
           </li>
         </ul>
+        <p class="results-reward-text" id="results-reward"></p>
         <div class="results-buttons">
           <button
             class="results-button results-button--next"
@@ -869,19 +966,35 @@
     </template>
 
     <template id="event-banner-template">
-      <section class="event-art event-art--festival-banner" aria-labelledby="event-festival-title">
+      <section
+        class="event-art event-art--festival-banner"
+        aria-labelledby="event-festival-title"
+      >
         <img src="pages/events/popup/festival-banner.png" alt="" />
         <div class="event-festival-copy">
           <p class="event-festival-badge">Live Event · 3D Left</p>
           <h3 id="event-festival-title">Rainbow Pop Rush Festival</h3>
-          <p class="event-festival-description">Play Rainbow Pop, Star Pop, or Paw Pop in Quick Match to earn festival Coins and Gems.</p>
+          <p class="event-festival-description">
+            Play Rainbow Pop, Star Pop, or Paw Pop in Quick Match to earn
+            festival Coins and Gems.
+          </p>
         </div>
       </section>
     </template>
 
-    <dialog class="game-dialog" id="game-dialog" closedby="any" aria-labelledby="dialog-title">
+    <dialog
+      class="game-dialog"
+      id="game-dialog"
+      closedby="any"
+      aria-labelledby="dialog-title"
+    >
       <div class="profile-topper" id="profile-topper" hidden aria-hidden="true">
-        <svg class="profile-topper-clouds" viewBox="0 0 360 72" fill="none" aria-hidden="true">
+        <svg
+          class="profile-topper-clouds"
+          viewBox="0 0 360 72"
+          fill="none"
+          aria-hidden="true"
+        >
           <defs>
             <linearGradient id="pf-cloud-grad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#ffffff" />
@@ -901,43 +1014,131 @@
           width="256"
           height="256"
         />
-        <span class="profile-sparkle profile-sparkle--tl" aria-hidden="true"></span>
-        <span class="profile-sparkle profile-sparkle--tr" aria-hidden="true"></span>
-        <span class="profile-sparkle profile-sparkle--farl" aria-hidden="true"></span>
-        <span class="profile-sparkle profile-sparkle--farr" aria-hidden="true"></span>
+        <span
+          class="profile-sparkle profile-sparkle--tl"
+          aria-hidden="true"
+        ></span>
+        <span
+          class="profile-sparkle profile-sparkle--tr"
+          aria-hidden="true"
+        ></span>
+        <span
+          class="profile-sparkle profile-sparkle--farl"
+          aria-hidden="true"
+        ></span>
+        <span
+          class="profile-sparkle profile-sparkle--farr"
+          aria-hidden="true"
+        ></span>
       </div>
-      <div class="missions-topper" id="missions-topper" hidden aria-hidden="true">
+      <div
+        class="missions-topper"
+        id="missions-topper"
+        hidden
+        aria-hidden="true"
+      >
         <span class="missions-topper-rays" aria-hidden="true"></span>
-        <img class="missions-topper-star missions-topper-star--l" src="pages/profile/icon-star.png" alt="" width="256" height="256" />
-        <img class="missions-topper-star missions-topper-star--c" src="pages/profile/icon-star.png" alt="" width="256" height="256" />
-        <img class="missions-topper-star missions-topper-star--r" src="pages/profile/icon-star.png" alt="" width="256" height="256" />
+        <img
+          class="missions-topper-star missions-topper-star--l"
+          src="pages/profile/icon-star.png"
+          alt=""
+          width="256"
+          height="256"
+        />
+        <img
+          class="missions-topper-star missions-topper-star--c"
+          src="pages/profile/icon-star.png"
+          alt=""
+          width="256"
+          height="256"
+        />
+        <img
+          class="missions-topper-star missions-topper-star--r"
+          src="pages/profile/icon-star.png"
+          alt=""
+          width="256"
+          height="256"
+        />
       </div>
       <div class="game-dialog-shell">
         <div class="rw-ambient" id="rewards-ambient" hidden aria-hidden="true">
-          <svg class="rw-amb-bunting" viewBox="0 0 420 76" preserveAspectRatio="none" fill="none" aria-hidden="true">
-            <path d="M-8 10Q105 38 210 14T428 16" stroke="#fff3a8" stroke-width="2.5" opacity="0.85" />
+          <svg
+            class="rw-amb-bunting"
+            viewBox="0 0 420 76"
+            preserveAspectRatio="none"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M-8 10Q105 38 210 14T428 16"
+              stroke="#fff3a8"
+              stroke-width="2.5"
+              opacity="0.85"
+            />
             <polygon points="18,16 46,21 29,48" fill="#ffe14d" opacity="0.92" />
             <polygon points="64,22 94,25 76,54" fill="#63eb91" opacity="0.9" />
-            <polygon points="114,25 144,24 128,53" fill="#ff73b9" opacity="0.92" />
-            <polygon points="274,18 304,21 286,49" fill="#62d2ff" opacity="0.9" />
-            <polygon points="324,21 354,19 338,48" fill="#ffe14d" opacity="0.92" />
-            <polygon points="374,19 404,15 390,45" fill="#ff7dc0" opacity="0.92" />
+            <polygon
+              points="114,25 144,24 128,53"
+              fill="#ff73b9"
+              opacity="0.92"
+            />
+            <polygon
+              points="274,18 304,21 286,49"
+              fill="#62d2ff"
+              opacity="0.9"
+            />
+            <polygon
+              points="324,21 354,19 338,48"
+              fill="#ffe14d"
+              opacity="0.92"
+            />
+            <polygon
+              points="374,19 404,15 390,45"
+              fill="#ff7dc0"
+              opacity="0.92"
+            />
           </svg>
           <span class="rw-amb-cloud rw-amb-cloud--l"></span>
           <span class="rw-amb-cloud rw-amb-cloud--r"></span>
-          <svg class="rw-amb-hills" viewBox="0 0 420 68" preserveAspectRatio="none" fill="none" aria-hidden="true">
-            <path d="M0 68V42c44-20 96-20 144-4 38-18 92-16 134 2 44-16 96-14 142 6v22H0z" fill="#ffd8f6" opacity="0.44" />
+          <svg
+            class="rw-amb-hills"
+            viewBox="0 0 420 68"
+            preserveAspectRatio="none"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M0 68V42c44-20 96-20 144-4 38-18 92-16 134 2 44-16 96-14 142 6v22H0z"
+              fill="#ffd8f6"
+              opacity="0.44"
+            />
             <circle cx="34" cy="48" r="14" fill="#ffe266" opacity="0.52" />
             <circle cx="386" cy="46" r="16" fill="#7be8ff" opacity="0.52" />
           </svg>
         </div>
         <div class="sh-ambient" id="shop-ambient" hidden aria-hidden="true">
           <span class="sh-amb-rays"></span>
-          <img class="sh-amb-awning-img" src="pages/shop/awning-3d.png" alt="" width="640" height="120" />
+          <img
+            class="sh-amb-awning-img"
+            src="pages/shop/awning-3d.png"
+            alt=""
+            width="640"
+            height="120"
+          />
           <span class="sh-amb-cloud sh-amb-cloud--l"></span>
           <span class="sh-amb-cloud sh-amb-cloud--r"></span>
-          <svg class="sh-amb-bottom" viewBox="0 0 420 64" preserveAspectRatio="none" fill="none" aria-hidden="true">
-            <path d="M0 64V40c44-20 96-20 144-4 38-18 92-16 134 2 44-16 96-14 142 6v20H0z" fill="#8df0ff" opacity="0.45" />
+          <svg
+            class="sh-amb-bottom"
+            viewBox="0 0 420 64"
+            preserveAspectRatio="none"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M0 64V40c44-20 96-20 144-4 38-18 92-16 134 2 44-16 96-14 142 6v20H0z"
+              fill="#8df0ff"
+              opacity="0.45"
+            />
             <circle cx="34" cy="46" r="14" fill="#ff7bc0" opacity="0.62" />
             <circle cx="386" cy="44" r="16" fill="#ffe156" opacity="0.62" />
           </svg>
@@ -997,15 +1198,33 @@
           </div>
         </header>
         <div class="game-dialog-wallet" id="dialog-wallet" hidden>
-          <button class="dialog-wallet-pill" type="button" data-dialog-nav="coins" aria-label="Add Coins">
+          <button
+            class="dialog-wallet-pill"
+            type="button"
+            data-dialog-nav="coins"
+            aria-label="Add Coins"
+          >
             <img src="pages/home/hud/coin.png" alt="" />
             <strong id="dialog-wallet-coins">24,580</strong>
-            <img class="dialog-wallet-plus" src="pages/home/hud/plus.png" alt="" />
+            <img
+              class="dialog-wallet-plus"
+              src="pages/home/hud/plus.png"
+              alt=""
+            />
           </button>
-          <button class="dialog-wallet-pill" type="button" data-dialog-nav="gems" aria-label="Add Gems">
+          <button
+            class="dialog-wallet-pill"
+            type="button"
+            data-dialog-nav="gems"
+            aria-label="Add Gems"
+          >
             <img src="pages/home/hud/gem.png" alt="" />
             <strong id="dialog-wallet-gems">980</strong>
-            <img class="dialog-wallet-plus" src="pages/home/hud/plus.png" alt="" />
+            <img
+              class="dialog-wallet-plus"
+              src="pages/home/hud/plus.png"
+              alt=""
+            />
           </button>
         </div>
         <div class="game-dialog-body" id="dialog-body">
@@ -1037,8 +1256,19 @@
           </section>
         </div>
         <p class="game-dialog-toast" id="dialog-toast" role="status" hidden></p>
-        <div class="missions-footer" id="missions-footer" hidden aria-hidden="true">
-          <svg class="missions-footer-clouds" viewBox="0 0 344 54" preserveAspectRatio="none" fill="none" aria-hidden="true">
+        <div
+          class="missions-footer"
+          id="missions-footer"
+          hidden
+          aria-hidden="true"
+        >
+          <svg
+            class="missions-footer-clouds"
+            viewBox="0 0 344 54"
+            preserveAspectRatio="none"
+            fill="none"
+            aria-hidden="true"
+          >
             <defs>
               <linearGradient id="ms-foot-grad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="#ffffff" />
@@ -1052,9 +1282,27 @@
             />
           </svg>
           <span class="missions-footer-stars" aria-hidden="true">
-            <img class="missions-footer-star missions-footer-star--side" src="pages/profile/icon-star.png" alt="" width="256" height="256" />
-            <img class="missions-footer-star missions-footer-star--center" src="pages/profile/icon-star.png" alt="" width="256" height="256" />
-            <img class="missions-footer-star missions-footer-star--side" src="pages/profile/icon-star.png" alt="" width="256" height="256" />
+            <img
+              class="missions-footer-star missions-footer-star--side"
+              src="pages/profile/icon-star.png"
+              alt=""
+              width="256"
+              height="256"
+            />
+            <img
+              class="missions-footer-star missions-footer-star--center"
+              src="pages/profile/icon-star.png"
+              alt=""
+              width="256"
+              height="256"
+            />
+            <img
+              class="missions-footer-star missions-footer-star--side"
+              src="pages/profile/icon-star.png"
+              alt=""
+              width="256"
+              height="256"
+            />
           </span>
         </div>
       </div>

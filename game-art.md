@@ -72,10 +72,10 @@ Perayaan kemenangan ditampilkan lewat Match Result interaktif. Gunakan pose kara
 - Tepi membulat, teks tebal, ikon mudah dikenali, dan area ketuk nyaman pada layar HP.
 - Panel informasi menampilkan data dinamis lewat HTML. Badge **Vs Bots**, status **Bot**, dan label **Open seat** membantu pemain mengenali jenis lobby dan isi kursinya.
 - Di Gameplay, tampilkan peringkat pertama tanpa bingkai kartu, dengan sprite podium karakter pemain, cahaya emas, mahkota, dan lencana emas. Gunakan pil untuk nilai. Posisikan nama pemain di tengah dan sedikit melewati tepi atas pil. Beri kartu peringkat kedua hingga keempat lencana biru.
-- Tampilkan warna target sebagai bubble kecil di kanan atas papan dengan bingkai emas. Di Classic Hunt, undi merah, hijau, kuning, atau biru sekali per pertandingan dan pakai warna itu di keempat stage. Bubble pengecoh tetap putih. Tampilkan sisa nyawa Frenzy di sebelahnya dan tampilkan petunjuk Memory pada tahap menghafal atau menjawab.
-- Tempatkan meter **Pop Power** dengan isi hijau di atas dock ungu berisi empat skill. Letakkan tombol **Pop Rush** sebagai pil emas terpisah di bawah dock, dengan warna aktif selama ronde. Gunakan gaya redup saat hitung mundur atau pratinjau Memory. Tekanan terlalu awal memicu umpan balik penalti.
-- Animasi bubble target berlangsung **120 ms** melalui kubah, lesung dangkal, lesung dalam, dan cekungan penuh. Pop Rush mengangkat bubble kembali.
-- Penalti memicu guncangan **240 ms** dan kilatan tepi yang mereda dalam **320 ms**. Saat **Kurangi Gerakan** aktif, gunakan perubahan bentuk langsung dan sorotan merah statis.
+- Tampilkan warna target sebagai bubble kecil di kanan atas papan dengan bingkai emas. Di Classic Hunt, undi merah, hijau, kuning, atau biru sekali per pertandingan dan pertahankan sepanjang level. Color Hunt memakai dua atau tiga warna sesuai level. Bubble pengecoh tetap putih. Tampilkan sisa nyawa di kiri atas papan pada mode selain Rush dan tampilkan petunjuk Memory pada tahap menghafal atau menjawab.
+- Tempatkan **Coins** dan **Energy** di atas dock ungu berisi satu sampai tiga skill sesuai level akun. Tampilkan timer sesi di header dan ubah menjadi timer per pop saat Frenzy. Letakkan **POP IT!** sebagai pil emas di bawah dock. Sembunyikan tombol saat Frenzy. Gunakan gaya redup saat hitung mundur atau pratinjau Memory. Tekanan terlalu awal memicu umpan balik penalti. Peringatan serangan memakai panel beraksen oranye di atas papan.
+- Animasi bubble target berlangsung **160 ms** melalui kubah, lesung dangkal, lesung dalam, dan cekungan penuh. **POP IT!** mengangkat bubble kembali. Bubble target dan pengecoh sama-sama tetap cekung setelah ditekan.
+- Bubble yang salah ditekan mengecil dan menggelap sebentar untuk memberi kesan mendelep. Penalti memicu guncangan **240 ms** dan kilatan tepi yang mereda dalam **320 ms**. Saat **Kurangi Gerakan** aktif, gunakan transisi opasitas pada bubble dan sorotan merah statis.
 
 ### Komponen antarmuka
 
@@ -84,11 +84,11 @@ Perayaan kemenangan ditampilkan lewat Match Result interaktif. Gunakan pose kara
 | Logo dan judul | Gunakan dua PNG transparan untuk logo Pop Rush dan pita tagline. Posisikan area gambar yang terlihat di tengah dan pertahankan proporsinya saat diskalakan. Untuk judul berbasis teks, gunakan Arial Rounded MT Bold, Trebuchet MS, lalu font sistem. [Logo PNG](pages/home/branding/logo-hd.png) · [Tagline PNG](pages/home/branding/tagline-hd.png) |
 | Akun dan saldo | Sejajarkan avatar, level, koin, dan diamond dalam satu baris. Samakan tinggi panel dan lebar kedua panel saldo. Sisakan ruang antara ikon, angka, dan tombol plus. |
 | Pintasan Home | Gunakan panel ungu, skala ikon, dan posisi label yang konsisten untuk Events, Missions, Shop, dan Rewards. Ikon boleh memiliki warna khas selama bentuknya tetap jelas. |
-| Tombol | Gunakan bentuk pil emas untuk aksi utama dan pil biru atau perak untuk aksi pendamping. Dock Gameplay memakai kapsul ungu yang dirender dengan CSS dan empat ikon skill (`skill-blast.png`, `skill-shield.png`, `skill-rush.png`, `skill-freeze.png`). Tombol Pop Rush berada di bawah dock. Buat keadaan ditekan dan fokus terlihat jelas. |
+| Tombol | Gunakan bentuk pil emas untuk aksi utama dan pil biru atau perak untuk aksi pendamping. Dock Gameplay memakai kapsul ungu yang dirender dengan CSS. Nama, simbol, dan harga mengikuti skill pilihan. Tombol **POP IT!** berada di bawah dock. Buat keadaan ditekan dan fokus terlihat jelas. |
 | Navigasi bawah | Bentangkan panel sampai tepi bawah halaman pada tampilan HP potret. Bulatkan sudut atas, beri warna yang lebih terang pada tab aktif, dan posisikan ikon serta label di atas area gestur. |
 | Mode di lobby | Gunakan badge **Vs Bots** di layar **Quick Match** dan badge **Private Room** di layar **Multiplayer Room**. Tempatkan tombol **Room code** di bawah panel stage pada ruang privat. Tampilkan kode 6 karakter dengan huruf kapital. |
 | Kartu di lobby | Gunakan panel biru-ungu dengan potret, nama, dan status tepat di bawah nama. Beri bingkai emas untuk pemain di perangkat tersebut. Tampilkan **Bot** pada tiga lawan Quick Match dan **Open seat** pada kursi kosong di Private Room. |
-| Panel stage | Tampilkan nama papan pilihan dan aksen warna bingkai di panel Stage x4. |
+| Panel stage | Tampilkan nama papan pilihan dan aksen warna bingkai di panel pemilihan stage dan mode. |
 
 ### Popup Events
 
@@ -122,7 +122,7 @@ Gunakan bingkai PNG potret dengan proporsi aslinya. Letakkan panel saldo, banner
 | --- | --- |
 | PNG RGBA | Potret, sprite podium, ikon, pita, dan frame animasi bubble. |
 | PNG / WebP | Latar dan ilustrasi statis. WebP dipakai untuk latar Match Result. |
-| MP3 | Efek ketukan, penalti, dan Pop Rush. |
+| MP3 | Efek ketukan, penalti, pergantian sesi, dan pembayaran skill. |
 | JSON | Manifest sumber dan spesifikasi aset per layar. |
 
 [Manifest Home](pages/home/manifest.json) · [Manifest Waiting Room](pages/Waiting_Room/manifest.json) · [Manifest Gameplay](pages/gameplay/manifest.json) · [Manifest Match Result](pages/match_results/manifest.json)

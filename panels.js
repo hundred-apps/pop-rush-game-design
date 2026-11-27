@@ -26,6 +26,7 @@ const popPanels = (() => {
   const dialogClose = document.querySelector("#dialog-close");
   const dialogToast = document.querySelector("#dialog-toast");
   const hudCoinsValue = document.querySelector("#hud-coins-value");
+  const gameplayCoins = document.querySelector("#gameplay-coins-value");
   const hudGemsValue = document.querySelector("#hud-gems-value");
   const hudProfileLevel = document.querySelector("#hud-profile-level");
   const mailButton = document.querySelector(".mail");
@@ -35,11 +36,12 @@ const popPanels = (() => {
     coins: 24580,
     gems: 980,
     nickname: "",
-    level: 12,
-    xp: 2480,
-    xpMax: 3000,
-    stats: { matches: 48, wins: 31, totalPops: 1284, bestRank: 1 },
-    items: { blast: 4, shield: 3, rush: 5, freeze: 2 },
+    level: 1,
+    xp: 0,
+    progressVersion: 1,
+    stats: { matches: 0, wins: 0, totalPops: 0, bestRank: null },
+    items: {},
+    levelRewardThrough: 1,
     claimedEvents: [],
     claimedMissions: [],
     claimedRewards: [1, 2],
@@ -60,9 +62,16 @@ const popPanels = (() => {
       const saved = JSON.parse(localStorage.getItem(storageKey));
       if (!saved || typeof saved !== "object")
         return structuredClone(defaultState);
+      const xp = Number.isFinite(saved.xp) && saved.xp >= 0 ? Math.trunc(saved.xp) : 0;
+      const migratedXp = saved.progressVersion === 1 ? xp : Math.max(xp, popRules.xpForPlayerLevel(saved.level));
+      const level = popRules.getPlayerLevel(migratedXp).level;
       return {
         ...structuredClone(defaultState),
         ...saved,
+        xp: migratedXp,
+        level,
+        progressVersion: 1,
+        levelRewardThrough: saved.progressVersion === 1 ? (saved.levelRewardThrough ?? level) : level,
         stats: { ...defaultState.stats, ...(saved.stats ?? {}) },
         items: { ...defaultState.items, ...(saved.items ?? {}) },
         ownedBoards:
@@ -100,7 +109,10 @@ const popPanels = (() => {
   let state = loadState();
   applyPopColor(state.equippedPopColor);
   applyGameBg(state.equippedBg);
+  saveState();
   let activePanel = null;
+  let liveEventsData = null;
+  let liveEventsRequest = null;
   let activeTab = {};
   let toastTimer = null;
   let justClaimedReward = false;
@@ -179,6 +191,11 @@ const popPanels = (() => {
 
   function mailMessages() {
     return [
+      ...(state.rankInbox ?? []).map((item) => ({
+        id: item.id, title: item.title, from: "Ranked Season", time: "Season ended",
+        body: "A reward for your highest tier in the season.",
+        reward: { coins: item.coins, gems: item.gems, label: `+${item.coins} Coins · +${item.gems} Gems` },
+      })),
       {
         id: "welcome-gift",
         title: "Welcome to Pop Rush!",
@@ -200,7 +217,7 @@ const popPanels = (() => {
         title: "Season 1 Ranking Kickoff",
         from: "Arena Host",
         time: "Yesterday",
-        body: "Climb the Season 1 leaderboard by clearing all 4 stages in under 45 seconds.",
+        body: "Ranked duels unlock at Player Lv.15. Your highest tier determines the season reward.",
         reward: null,
       },
     ];
@@ -214,6 +231,8 @@ const popPanels = (() => {
   }
 
   function syncHud() {
+    document.documentElement.dataset.avatarFrame = state.cosmetics?.avatarFrame ?? "";
+    if (gameplayCoins) gameplayCoins.textContent = fmt(state.coins);
     if (hudCoinsValue) {
       hudCoinsValue.textContent = fmt(state.coins);
       hudCoinsValue.parentElement?.setAttribute(
@@ -255,7 +274,33 @@ const popPanels = (() => {
   function awardReward(reward) {
     if (reward.coins) state.coins += reward.coins;
     if (reward.gems) state.gems += reward.gems;
-    if (reward.xp) state.xp = Math.min(state.xpMax, state.xp + reward.xp);
+    if (reward.xp) {
+      state.xp += reward.xp;
+      state.level = popRules.getPlayerLevel(state.xp).level;
+      for (const milestone of popRules.playerLevels) {
+        if (milestone.level <= state.levelRewardThrough || milestone.level > state.level) continue;
+        state.coins += milestone.coins ?? 0;
+        state.gems += milestone.gems ?? 0;
+        if (milestone.skill) state.items[milestone.skill] = (state.items[milestone.skill] ?? 0) + 1;
+      }
+      state.levelRewardThrough = Math.max(state.levelRewardThrough, state.level);
+    }
+    if (reward.finish) {
+      state.rewardFinishes ??= [];
+      if (!state.rewardFinishes.includes(reward.finish)) state.rewardFinishes.push(reward.finish);
+    }
+    if (reward.sound) {
+      state.rewardSounds ??= [];
+      if (!state.rewardSounds.includes(reward.sound)) state.rewardSounds.push(reward.sound);
+    }
+    if (reward.frame) {
+      state.rewardFrames ??= [];
+      if (!state.rewardFrames.includes(reward.frame)) state.rewardFrames.push(reward.frame);
+    }
+    if (reward.title) {
+      state.rewardTitles ??= [];
+      if (!state.rewardTitles.includes(reward.title)) state.rewardTitles.push(reward.title);
+    }
     if (reward.items) {
       for (const [key, qty] of Object.entries(reward.items)) {
         state.items[key] = (state.items[key] ?? 0) + qty;
@@ -263,6 +308,197 @@ const popPanels = (() => {
     }
     saveState();
     syncHud();
+  }
+
+  function spendCoins(amount) {
+    if (state.coins < amount) return false;
+    state.coins -= amount;
+    saveState();
+    syncHud();
+    return true;
+  }
+
+  function settleMatchSkillCoins(matchId, coinsSpent, topUp) {
+    const ledger = state.matchSkillLedger ?? {};
+    const previous = ledger[matchId] ?? (state.matchSkillSpend?.matchId === matchId ? state.matchSkillSpend.amount : 0);
+    if (!(coinsSpent > previous)) return false;
+    if (topUp && state.gems >= 5) {
+      state.gems -= 5;
+      state.coins += 250;
+    }
+    state.coins = Math.max(0, state.coins - (coinsSpent - previous));
+    delete ledger[matchId];
+    state.matchSkillLedger = Object.fromEntries([...Object.entries(ledger).slice(-19), [matchId, coinsSpent]]);
+    saveState();
+    syncHud();
+    return true;
+  }
+
+  function recordModeResult(mode, result, reward, matchId) {
+    if (!Number.isFinite(result.elapsed) || result.elapsed < 0) return;
+    if (matchId) {
+      if ((state.recordedMatches ?? []).includes(matchId)) return;
+      state.recordedMatches = [...(state.recordedMatches ?? []).slice(-19), matchId];
+    }
+    updateMissionProgress(mode, result, Boolean(matchId));
+    state.modeRecords ??= {};
+    const previous = state.modeRecords[mode];
+    const better = !previous || result.score > previous.score ||
+      (result.score === previous.score && (result.level > previous.level ||
+        (result.level === previous.level && result.elapsed < previous.elapsed)));
+    const best = better ? result : previous;
+    state.modeRecords[mode] = {
+      ...best,
+      highestLevel: Math.max(previous?.highestLevel ?? 0, result.completed ? result.level : 0),
+      bestStreak: Math.max(previous?.bestStreak ?? 0, result.streak),
+    };
+    if (mode === "sequence" && result.completed) {
+      const stars = state.sequenceStars ??= {};
+      const speedrun = 5000 * popRules.getGameLevel(mode, result.level).sessions;
+      const earned = result.mistakes === 0 ? (result.elapsed < speedrun ? 3 : 2) : 1;
+      stars[result.level] = Math.max(stars[result.level] ?? 0, earned);
+    }
+    if (mode === "frenzy") state.feverBoxes = (state.feverBoxes ?? 0) + (result.feverBoxes ?? 0);
+    awardReward(reward);
+  }
+
+  function sequenceStars() {
+    return Object.values(state.sequenceStars ?? {}).reduce((total, value) => total + value, 0);
+  }
+
+  function exchangeCoins(gems, coins) {
+    if (state.gems < gems) return false;
+    state.gems -= gems;
+    awardReward({ coins });
+    return true;
+  }
+
+  function matchBoosters() {
+    const booster = state.armedBooster;
+    return {
+      booster: (state.boosterTickets?.[booster] ?? 0) > 0 ? booster : null,
+      xpBoostUntil: state.xpBoostUntil ?? 0,
+    };
+  }
+
+  function consumeMatchBooster(id, matchId) {
+    if (!id || (state.boosterTickets?.[id] ?? 0) < 1) return;
+    if (matchId) {
+      if ((state.spentBoosterMatches ?? []).includes(matchId)) return;
+      state.spentBoosterMatches = [...(state.spentBoosterMatches ?? []).slice(-19), matchId];
+    }
+    state.boosterTickets[id] -= 1;
+    if (state.armedBooster === id) state.armedBooster = null;
+    saveState();
+  }
+
+  function deckSelect(label, items, value, onChange) {
+    const field = el("label", "deck-setting", label);
+    const select = el("select", "deck-select");
+    for (const [id, name] of items) {
+      const option = el("option", "", name);
+      option.value = id;
+      select.append(option);
+    }
+    select.value = value;
+    select.addEventListener("change", () => onChange(select.value));
+    field.append(select);
+    return field;
+  }
+
+  function deckChoices(ids, allowAttack, onChange, forBot = false) {
+    const list = el("div", "deck-skill-list");
+    for (const [id, skill] of Object.entries(popRules.skillDefinitions)) {
+      const label = el("label", "deck-skill");
+      const input = el("input");
+      input.type = "checkbox";
+      input.checked = ids.includes(id);
+      const playerLevel = forBot ? 20 : state.level;
+      const needed = popRules.skillUnlockLevel(id);
+      const versusOnly = !allowAttack && skill.kind === "attack";
+      const locked = versusOnly || playerLevel < needed;
+      input.disabled = locked || (!input.checked && ids.length >= (forBot ? 3 : popRules.playerSkillSlots(state.xp)));
+      input.addEventListener("change", () => {
+        onChange(input.checked ? [...ids, id] : ids.filter((selected) => selected !== id));
+        renderActivePanel();
+      });
+      label.append(input, el("span", "", `${skill.symbol} ${skill.name}`),
+        el("small", "", versusOnly ? "Versus only" : locked ? `Lv.${needed}` : `${skill.coins}¢`));
+      list.append(label);
+    }
+    return list;
+  }
+
+  function renderDeck() {
+    const isPractice = location.hash === "#room";
+    const isOnline = ["#private-room", "#online-room", "#ranked-room"].includes(location.hash);
+    const inLobby = isPractice || isOnline;
+    const useVersusDeck = inLobby && (!isPractice || modeConfig.botCount > 0);
+    const ids = getDeckSkills(useVersusDeck);
+    const cost = ids.reduce((sum, id) => sum + popRules.skillDefinitions[id].coins, 0);
+    const root = el("div", "deck-panel");
+    if (isPractice) {
+      root.append(deckSelect("Opponents", [[0, "Solo"], [1, "1 bot"], [2, "2 bots"], [3, "3 bots"]], modeConfig.botCount, (value) => {
+        modeConfig.botCount = Number(value);
+        saveModeConfig();
+        renderQuickRoom(false);
+        renderActivePanel();
+      }));
+    }
+    root.append(el("h3", "panel-title", `Skills · ${ids.length}/${popRules.playerSkillSlots(state.xp)}`),
+      el("p", "panel-desc", `One rotation costs ${cost} Coins`),
+      deckChoices(ids, useVersusDeck, (next) => {
+        setDeckSkills(next, useVersusDeck);
+        if (isOnline) submitOnlineReady(false);
+      }));
+    if (useVersusDeck) {
+      root.append(actionBtn("Save as default lobby deck", "blue", () => {
+        setDeckSkills(ids, true, true);
+        showToast("Lobby deck saved.");
+      }));
+    }
+    if (inLobby && state.coins < cost) {
+      root.append(actionBtn("Exchange 10 Gems for 500 Coins", "gold", () => {
+        if (!exchangeCoins(10, 500)) return showToast("Not enough Gems.", "warn");
+        if (isOnline) submitOnlineReady(false);
+        renderActivePanel();
+      }));
+    }
+    const tickets = Object.entries(popRules.boosters).filter(([id]) => id !== "xp_hour" && (state.boosterTickets?.[id] ?? 0) > 0);
+    if (tickets.length) {
+      root.append(deckSelect("Next match ticket", [["", "None"], ...tickets.map(([id, data]) =>
+        [id, `${data.name} ×${state.boosterTickets[id]}`])], state.armedBooster ?? "", (id) => {
+        state.armedBooster = id || null;
+        saveState();
+        if (isOnline) submitOnlineReady(false);
+      }));
+    }
+    if (!inLobby) {
+      root.append(deckSelect("POP IT! controls", [["tap", "Tap"], ["swipe", "Swipe / pinch"], ["motion", "Shake / tilt"]], modeConfig.resetControl, (value) => {
+        modeConfig.resetControl = value;
+        saveModeConfig();
+      }));
+    }
+    for (let index = 0; isPractice && index < modeConfig.botCount; index += 1) {
+      const config = modeConfig.botSettings[index] ??= { difficulty: "Medium" };
+      const card = el("fieldset", "deck-bot");
+      card.append(el("legend", "", `Bot ${index + 1}`),
+        deckSelect("Difficulty", ["Easy", "Medium", "Hard", "Insane"].map((id) => [id, id]), config.difficulty, (value) => {
+          config.difficulty = value;
+          saveModeConfig();
+        }),
+        deckSelect("Loadout", [["auto", "Auto"], ["custom", "Custom"]], config.skills ? "custom" : "auto", (value) => {
+          config.skills = value === "custom" ? [...popRules.defaultLoadout] : null;
+          saveModeConfig();
+          renderActivePanel();
+        }));
+      if (config.skills) card.append(deckChoices(config.skills, true, (next) => {
+        config.skills = next;
+        saveModeConfig();
+      }, true));
+      root.append(card);
+    }
+    dialogContent.append(root);
   }
 
   function goToRoute(hash) {
@@ -367,33 +603,6 @@ const popPanels = (() => {
     return [bar, current];
   }
 
-  const skillMeta = [
-    {
-      id: "blast",
-      name: "Blast",
-      icon: "pages/gameplay/dock/skill-blast.png",
-      desc: "Pop an extra green target burst.",
-    },
-    {
-      id: "shield",
-      name: "Shield",
-      icon: "pages/gameplay/dock/skill-shield.png",
-      desc: "Block one wrong-pop board lock.",
-    },
-    {
-      id: "rush",
-      name: "Rush",
-      icon: "pages/gameplay/dock/skill-rush.png",
-      desc: "Trigger stage Pop Rush instantly.",
-    },
-    {
-      id: "freeze",
-      name: "Freeze",
-      icon: "pages/gameplay/dock/skill-freeze.png",
-      desc: "Slow rival progress briefly.",
-    },
-  ];
-
   function attachSpatialTilt(card) {
     if (!window.matchMedia?.("(hover: hover) and (pointer: fine)").matches)
       return;
@@ -430,122 +639,206 @@ const popPanels = (() => {
     card.addEventListener("pointercancel", resetTilt);
   }
 
+  function refreshLiveEvents() {
+    if (liveEventsRequest) return liveEventsRequest;
+    liveEventsRequest = multiplayer.liveEvents().then((data) => {
+      if (!data) return;
+      liveEventsData = data;
+      state.ranked = { ...data.ranked, standings: undefined, inbox: undefined };
+      state.rankInbox = data.ranked.inbox;
+      saveState();
+      if (dialog.open && ["events", "mail", "missions", "ranking"].includes(activePanel)) renderActivePanel();
+      else syncHud();
+    }).finally(() => { liveEventsRequest = null; });
+    return liveEventsRequest;
+  }
+
+  function themeWallet(now = Date.now()) {
+    const period = popRules.eventPeriod(now, 14);
+    if (state.themeWallet?.id !== period.id) state.themeWallet = { id: period.id, tokens: 0 };
+    return { ...period, tokens: state.themeWallet.tokens };
+  }
+
+  function recordThemeTokens(sessions) {
+    themeWallet();
+    state.themeWallet.tokens += sessions;
+  }
+
+  function eventEndsAt(value) {
+    return new Date(value).toLocaleDateString("en-GB", { dateStyle: "medium", timeZone: "UTC" });
+  }
+
   function renderEvents() {
-    const assetFolder = "pages/events/popup/";
-    const milestones = [
-      {
-        id: "ev-1",
-        title: "First Rush Warmup ea ea",
-        description: "Complete 1 Quick Match",
-        progress: 1,
-        target: 1,
-        currency: "coins",
-        amount: 500,
-      },
-      {
-        id: "ev-2",
-        title: "Green Bubble Hunter",
-        description: "Pop 50 green target bubbles",
-        progress: 35,
-        target: 50,
-        currency: "gems",
-        amount: 25,
-      },
-      {
-        id: "ev-3",
-        title: "Board Explorer",
-        description: "Win 3 matches on custom boards",
-        progress: 1,
-        target: 3,
-        currency: "coins",
-        amount: 1500,
-      },
-    ];
-
-    function artwork(asset, description = "", tag = "div") {
-      const node = el(tag, `event-art event-art--${asset}`);
-      node.append(imgEl(`${assetFolder}${asset}.png`, "", description));
-      return node;
-    }
-
     const root = el("div", "event-popup");
-    const wallet = artwork("wallet");
+    const wallet = el("div", "event-art event-art--wallet");
+    wallet.append(imgEl("pages/events/popup/wallet.png"));
     for (const currency of ["coins", "gems"]) {
       const amount = fmt(state[currency]);
-      const button = el(
-        "button",
-        `event-wallet-button event-wallet-button--${currency}`,
-      );
+      const button = el("button", `event-wallet-button event-wallet-button--${currency}`);
       button.type = "button";
       button.setAttribute("aria-label", `Add ${currency}, balance ${amount}`);
       button.append(el("strong", "event-wallet-amount", amount));
       button.addEventListener("click", () => open(currency));
       wallet.append(button);
     }
+    const banner = document.querySelector("#event-banner-template").content.cloneNode(true);
+    banner.querySelector(".event-festival-badge").textContent = "Live events";
+    banner.querySelector(".event-festival-copy h3").textContent = "Pop Rush Events";
+    banner.querySelector(".event-festival-description").textContent = "Join the community and collect event rewards.";
+    root.append(wallet, banner);
 
-    const banner = document.querySelector("#event-banner-template");
-    root.append(wallet, banner.content.cloneNode(true));
+    const weekend = el("div", "panel-card");
+    weekend.append(el("h4", "panel-title", "Weekend Frenzy"),
+      el("p", "panel-desc", "Saturday and Sunday (UTC) · online matches and Frenzy earn 2× Coins, 1.5× XP and 20% shorter skill cooldowns."),
+      badgeEl(popRules.weekendBonus("frenzy", false, Date.now()) ? "Active" : "Starts Saturday", "purple"));
+    root.append(weekend);
 
-    for (const milestone of milestones) {
-      const { id, title, description, progress, target, currency, amount } = milestone;
-      const claimed = state.claimedEvents.includes(id);
-      const ready = progress >= target;
-      const rewardLabel = `+${fmt(amount)} ${currency === "coins" ? "Coins" : "Gems"}`;
-      const card = el("article", "event-milestone");
-      const copy = el("div", "event-milestone-copy");
-      copy.append(
-        el("h4", "event-milestone-title", title),
-        el("p", "event-milestone-description", description),
-        el("p", "event-milestone-reward", rewardLabel),
-      );
-
-      const action = el("button", "event-milestone-action", claimed ? "Claimed" : ready ? "Claim" : "Play");
-      action.type = "button";
-      action.dataset.state = claimed ? "claimed" : ready ? "claim" : "play";
-      action.disabled = claimed;
-      if (!claimed && ready) {
-        action.setAttribute("aria-label", `Claim ${title} reward`);
-        action.addEventListener("click", () => {
-          if (state.claimedEvents.includes(id)) return;
+    const community = el("div", "panel-card");
+    community.append(el("h4", "panel-title", "Global Pop Milestone"));
+    const current = liveEventsData?.milestone;
+    if (!current) {
+      community.append(el("p", "panel-desc", "Connect to the game server to see community progress."));
+    } else {
+      community.append(el("p", "panel-desc", `${fmt(current.total)} / 10,000,000 pops · Your contribution ${fmt(current.contribution)} · Ends ${eventEndsAt(current.endsAt)}`));
+      const rows = [
+        [2500000, 0, "300 Coins", { coins: 300 }],
+        [5000000, 0, "Skill Pack", { items: { shield: 1, blast: 1, double: 1 } }],
+        [10000000, 500, "Milestone Celebration finish + 25 Gems", { finish: "global", gems: 25 }],
+      ];
+      for (const [threshold, contribution, label, reward] of rows) {
+        const id = `global:${current.id}:${threshold}`;
+        const row = el("div", "panel-row");
+        row.append(el("p", "panel-desc", `${fmt(threshold)} pops · ${label}${contribution ? " · 500 personal pops" : ""}`));
+        const claimed = state.claimedEvents.includes(id);
+        const eligible = current.total >= threshold && current.contribution >= contribution && Date.now() < current.endsAt;
+        const claim = actionBtn(claimed ? "Claimed" : "Claim", "gold", () => {
+          if (Date.now() >= current.endsAt || state.claimedEvents.includes(id)) return;
           state.claimedEvents.push(id);
-          awardReward({ [currency]: amount });
+          awardReward(reward);
           renderActivePanel();
-          dialogClose.focus({ preventScroll: true });
-          showToast(`Festival reward claimed: ${rewardLabel}!`);
         });
-      } else if (!claimed) {
-        action.setAttribute("aria-label", `Play Quick Match for ${title}`);
-        action.addEventListener("click", () => goToRoute("#room"));
+        claim.disabled = claimed || !eligible;
+        row.append(claim);
+        community.append(row);
       }
-
-      const progressRow = el("div", "event-milestone-progress");
-      const track = el("div", "event-progress-track");
-      const value = Math.min(target, Math.max(0, progress));
-      track.setAttribute("role", "progressbar");
-      track.setAttribute("aria-label", `${title} progress`);
-      track.setAttribute("aria-valuemax", target);
-      track.setAttribute("aria-valuenow", value);
-      const fill = el("span", "event-progress-fill");
-      fill.style.width = `${(value / target) * 100}%`;
-      track.append(fill);
-      const count = el("span", "event-progress-count", `${value}/${target}`);
-      count.setAttribute("aria-hidden", "true");
-      progressRow.append(track, count);
-      card.append(copy, action, progressRow);
-      root.append(card);
     }
+    root.append(community);
 
-    const play = artwork("play-quick-match", "Play Quick Match", "button");
-    play.type = "button";
-    play.addEventListener("click", () => goToRoute("#room"));
-    root.append(play);
+    const ranked = el("div", "panel-card");
+    ranked.append(el("h4", "panel-title", "Ranked Season"),
+      el("p", "panel-desc", state.ranked ? `${state.ranked.tier} · ${state.ranked.points} RP · Ends ${eventEndsAt(state.ranked.endsAt)}` : "30-day season · unlock at Player Lv.15"),
+      actionBtn("View standings", "blue", () => open("ranking")));
+    root.append(ranked);
+
+    const theme = el("div", "panel-card");
+    const period = themeWallet();
+    theme.append(el("h4", "panel-title", "Theme Showcase"),
+      el("p", "panel-desc", `${period.tokens} Event Tokens · Earn 1 per completed session · Ends ${eventEndsAt(period.endsAt)}`));
+    const offers = [
+      ["cyberpunk", 20, "Cyberpunk", { finish: "cyberpunk" }],
+      ["pastel", 20, "Pastel Candy", { finish: "pastel" }],
+      ["arcade", 20, "Retro Arcade", { finish: "arcade" }],
+      ["retro", 15, "8-Bit Retro SFX", { sound: "retro" }],
+    ];
+    for (const [id, cost, label, reward] of offers) {
+      const key = `theme:${id}`;
+      const row = el("div", "panel-row");
+      row.append(el("span", "panel-desc", label));
+      const owned = state.claimedEvents.includes(key);
+      const buy = actionBtn(owned ? "Owned" : `${cost} Tokens`, "gold", () => {
+        if (state.claimedEvents.includes(key) || themeWallet().tokens < cost) return;
+        state.themeWallet.tokens -= cost;
+        state.claimedEvents.push(key);
+        awardReward(reward);
+        renderActivePanel();
+      });
+      buy.disabled = owned || period.tokens < cost;
+      row.append(buy);
+      theme.append(row);
+    }
+    root.append(theme);
     dialogContent.append(root);
+  }
+
+  const finishLabels = { royal: "Royal Crystal", cyberpunk: "Cyberpunk", pastel: "Pastel Candy", arcade: "Retro Arcade", global: "Milestone Celebration" };
+
+  function missionWindow(now = Date.now()) {
+    const day = new Date(now).toISOString().slice(0, 10);
+    const week = new Date(popRules.weekStart(now)).toISOString().slice(0, 10);
+    const progress = state.missionProgress ??= {};
+    if (progress.daily?.key !== day) progress.daily = { key: day };
+    if (progress.weekly?.key !== week) progress.weekly = { key: week };
+    return progress;
+  }
+
+  function updateMissionProgress(mode, result, online) {
+    const { daily, weekly } = missionWindow();
+    const add = (bucket, key, value) => { bucket[key] = (bucket[key] ?? 0) + (value ?? 0); };
+    add(daily, "pops", result.totalPops);
+    add(daily, "skills", result.skillUses);
+    add(daily, "online", Number(online));
+    add(weekly, "wins", Number(online && result.won));
+    add(weekly, "frenzy", Number(mode === "frenzy" && result.streak >= 50));
+    add(weekly, "perfect", result.perfectSessions);
+    for (const kind of ["attack", "defend", "power"]) add(weekly, kind, result.skillCategories?.[kind]);
+    add(state.stats, "matches", 1);
+    add(state.stats, "wins", Number(result.won));
+    add(state.stats, "totalPops", result.totalPops);
+    state.stats.bestRank = Math.min(state.stats.bestRank ?? Infinity, result.rank || 4);
+    state.achievements ??= {};
+    if (mode === "memory" && result.completed && result.level === 15 && !result.penalties) {
+      state.achievements.memory = true;
+    }
+    recordThemeTokens(result.completedSessions ?? 0);
+  }
+
+  function missionRows(tab) {
+    const { daily, weekly } = missionWindow();
+    const dailyClaims = state.claimedMissions.filter((key) => key.startsWith(`${daily.key}:DLY_`) && !key.endsWith("DLY_05")).length;
+    const boardCount = new Set([...state.ownedBoards, ...(state.rewardFinishes ?? []),
+      ...(state.level >= 10 ? ["neon"] : []), ...(state.level >= 20 ? ["golden"] : []),
+      ...(sequenceStars() >= 50 ? ["piano"] : []), ...(sequenceStars() >= 150 ? ["cyber"] : []),
+      ...((state.modeRecords?.frenzy?.bestStreak ?? 0) >= 200 ? ["magma"] : [])]).size;
+    const all = {
+      daily: [
+        ["DLY_01", "Daily Login", "Open Pop Rush today", 1, 1, { coins: 100 }, "100 Coins", "#home"],
+        ["DLY_02", "Target Popper", "Pop target bubbles in any mode", daily.pops, 150, { coins: 150, xp: 50 }, "150 Coins + 50 XP", "#room"],
+        ["DLY_03", "Online Challenger", "Finish online multiplayer matches", daily.online, 2, { coins: 200, xp: 80 }, "200 Coins + 80 XP", "online"],
+        ["DLY_04", "Skill User", "Activate skills during matches", daily.skills, 5, { coins: 150, xp: 50 }, "150 Coins + 50 XP", "#room"],
+        ["DLY_05", "Daily Sweep", "Claim the other four daily missions", dailyClaims, 4, { gems: 5, xp: 100 }, "5 Gems + 100 XP", "#home"],
+      ],
+      weekly: [
+        ["WKL_01", "Arena Winner", "Win online multiplayer matches", weekly.wins, 10, { coins: 1000, xp: 300 }, "1,000 Coins + 300 XP", "online"],
+        ["WKL_02", "Amazing Streak", "Reach 50 streak in three Frenzy matches", weekly.frenzy, 3, { gems: 15, xp: 250 }, "15 Gems + 250 XP", "#room"],
+        ["WKL_03", "Perfect Board", "Finish sessions without a mistake", weekly.perfect, 15, { coins: 800, xp: 200 }, "800 Coins + 200 XP", "#room"],
+        ["WKL_04", "Skill Rotation", "Use each of the three skill categories ten times", Math.min(weekly.attack ?? 0, weekly.defend ?? 0, weekly.power ?? 0), 10,
+          () => {
+            const ids = Object.keys(popRules.skillDefinitions);
+            return { items: { [ids[Math.floor(Math.random() * ids.length)]]: 1 } };
+          }, "Random Skill Card", "#room"],
+      ],
+      achievements: [
+        ["ACH_FRENZY", "Frenzy God", "Reach 200 Frenzy streak", state.modeRecords?.frenzy?.bestStreak, 200, { title: "Untouchable", gems: 50 }, "Untouchable + 50 Gems", "#room"],
+        ["ACH_MEMORY", "Photographic Mind", "Clear Memory Lv.15 without losing a life", Number(Boolean(state.achievements?.memory)), 1,
+          { frame: "brainiac" }, "Brainiac frame", "#room"],
+        ["ACH_ARENA", "Arena Champion", "Reach Diamond in Ranked", Number(Boolean(state.ranked?.diamond)), 1,
+          { finish: "royal" }, "Royal Crystal finish", "online"],
+        ["ACH_COLLECT", "Collector", "Own ten board themes", boardCount, 10, { gems: 100 }, "100 Gems", "#board"],
+      ],
+    };
+    const prefix = tab === "daily" ? daily.key : tab === "weekly" ? weekly.key : "permanent";
+    return all[tab].map(([id, title, desc, cur, max, reward, rewardLabel, route], index) => ({
+      id: `${prefix}:${id}`, title, desc, cur: Math.min(cur ?? 0, max), max, reward, rewardLabel, route,
+      art: `pages/missions/art-${["quick-match", "board-stylist", "clean-sweeper"][index % 3]}.png`,
+      rewardIcon: `pages/home/hud/${reward.gems ? "gem" : "coin"}.png`,
+    }));
   }
 
   function renderMissions() {
     const tabItems = [
       { id: "daily", label: "Daily" },
       { id: "weekly", label: "Weekly" },
+      { id: "achievements", label: "Achievements" },
     ];
     const tab = activeTab.missions ?? "daily";
     activeTab.missions = tab;
@@ -567,86 +860,7 @@ const popPanels = (() => {
       tabBar.append(btn);
     }
 
-    const allMissions = {
-      daily: [
-        {
-          id: "d1",
-          title: "Quick Match Starter",
-          desc: "Enter a Quick Match room with Luna",
-          cur: 1,
-          max: 1,
-          reward: { coins: 300 },
-          rewardLabel: "+300 Coins",
-          art: "pages/missions/art-quick-match.png",
-          rewardIcon: "pages/home/hud/coin.png",
-          route: "#room",
-        },
-        {
-          id: "d2",
-          title: "Board Stylist",
-          desc: "Equip Rainbow Pop, Star Pop, or Paw Pop",
-          cur: 1,
-          max: 1,
-          reward: { gems: 15 },
-          rewardLabel: "+15 Gems",
-          art: "pages/missions/art-board-stylist.png",
-          rewardIcon: "pages/home/hud/gem.png",
-          route: "#board",
-        },
-        {
-          id: "d3",
-          title: "Clean Sweeper",
-          desc: "Pop 28 target bubbles in one day",
-          cur: 18,
-          max: 28,
-          reward: { coins: 600 },
-          rewardLabel: "+600 Coins",
-          art: "pages/missions/art-clean-sweeper.png",
-          rewardIcon: "pages/home/hud/coin.png",
-          route: "#room",
-        },
-      ],
-      weekly: [
-        {
-          id: "w1",
-          title: "Party Host",
-          desc: "Play 5 Private Room matches with friends",
-          cur: 2,
-          max: 5,
-          reward: { gems: 80 },
-          rewardLabel: "+80 Gems",
-          art: "pages/missions/art-party-host.png",
-          rewardIcon: "pages/home/hud/gem.png",
-          route: "#private-room",
-        },
-        {
-          id: "w2",
-          title: "Speed Runner",
-          desc: "Clear all 4 stages 10 times",
-          cur: 7,
-          max: 10,
-          reward: { coins: 2000 },
-          rewardLabel: "+2,000 Coins",
-          art: "pages/missions/art-speed-runner.png",
-          rewardIcon: "pages/home/hud/coin.png",
-          route: "#room",
-        },
-        {
-          id: "w3",
-          title: "Champion Podium",
-          desc: "Finish 1st place in Quick Match",
-          cur: 1,
-          max: 1,
-          reward: { gems: 45 },
-          rewardLabel: "+45 Gems",
-          art: "pages/missions/art-champion-podium.png",
-          rewardIcon: "pages/home/hud/gem.png",
-          route: "#room",
-        },
-      ],
-    };
-
-    const rows = allMissions[tab];
+    const rows = missionRows(tab);
     const doneCount = rows.filter((m) =>
       state.claimedMissions.includes(m.id),
     ).length;
@@ -661,7 +875,7 @@ const popPanels = (() => {
     const summaryCopy = el("div", "ms-summary-copy");
     const summaryMeta = el("div", "ms-summary-meta");
     summaryMeta.append(
-      el("span", "", `${tab === "daily" ? "Daily" : "Weekly"} Progress`),
+      el("span", "", `${tabItems.find((item) => item.id === tab).label} Progress`),
       el("strong", "", `${doneCount}/${rows.length} Claimed`),
     );
     const summaryTrack = el("div", "ms-progress-track");
@@ -705,15 +919,22 @@ const popPanels = (() => {
         cta = el("button", "ms-btn ms-btn--claim", "Claim");
         cta.type = "button";
         cta.addEventListener("click", () => {
+          const current = missionRows(tab).find((row) => row.id === m.id);
+          if (!current || current.cur < current.max || state.claimedMissions.includes(m.id)) return renderActivePanel();
           state.claimedMissions.push(m.id);
-          awardReward({ ...m.reward, xp: 120 });
+          awardReward(typeof m.reward === "function" ? m.reward() : m.reward);
           showToast(`Mission claimed: ${m.rewardLabel}!`);
           renderActivePanel();
         });
       } else {
         cta = el("button", "ms-btn ms-btn--go", "Go");
         cta.type = "button";
-        cta.addEventListener("click", () => goToRoute(m.route));
+        cta.addEventListener("click", () => {
+          if (m.route === "online") {
+            close();
+            openOnlineDialog();
+          } else goToRoute(m.route);
+        });
       }
 
       top.append(copy, cta);
@@ -920,7 +1141,7 @@ const popPanels = (() => {
 
   function renderShop() {
     let tab = activeTab.shop;
-    if (tab !== "board" && tab !== "bundle" && tab !== "background")
+    if (!["board", "bundle", "background", "boosters"].includes(tab))
       tab = "board";
     activeTab.shop = tab;
 
@@ -943,6 +1164,7 @@ const popPanels = (() => {
         label: "Background",
         icon: "pages/missions/castle-cloud.png",
       },
+      { id: "boosters", label: "Boosters", icon: "pages/profile/icon-star.png" },
     ];
     const tabBar = el("div", "sh-tabs");
     tabBar.role = "tablist";
@@ -960,6 +1182,27 @@ const popPanels = (() => {
         renderActivePanel();
       });
       tabBar.append(btn);
+    }
+
+    if (tab === "boosters") {
+      root.append(tabBar);
+      for (const [id, item] of Object.entries(popRules.boosters)) {
+        const card = el("div", "panel-card");
+        const buy = actionBtn(`${item.cost} ${item.currency === "coins" ? "Coins" : "Gems"}`, "gold", () => {
+          if (state[item.currency] < item.cost) return;
+          state[item.currency] -= item.cost;
+          state.boosterTickets ??= {};
+          state.boosterTickets[id] = (state.boosterTickets[id] ?? 0) + 1;
+          saveState();
+          renderActivePanel();
+          showToast(`${item.name} added to Inventory.`);
+        });
+        buy.disabled = state[item.currency] < item.cost;
+        card.append(el("h4", "panel-title", item.name), el("p", "panel-desc", item.desc), buy);
+        root.append(card);
+      }
+      dialogContent.append(root);
+      return;
     }
 
     /* 2. 3D Spotlight Hero Showcase Banner */
@@ -1578,19 +1821,85 @@ const popPanels = (() => {
 
     if (tab === "items") {
       const grid = el("div", "panel-grid-2");
-      for (const item of skillMeta) {
+      const best = state.modeRecords?.frenzy?.bestStreak ?? 0;
+      const cosmeticGroups = [
+        ["boardFinish", "Board finish", [["original", "Original"], ["neon", "Neon Glow", state.level >= 10], ["golden", "Golden Touch", state.level >= 20], ["piano", "Piano Keys", sequenceStars() >= 50],
+          ["cyber", "Cyber Grid", sequenceStars() >= 150], ["magma", "Magma Core", best >= 200], ...(state.rewardFinishes ?? []).map((finish) => [finish, finishLabels[finish] ?? finish])]],
+        ["popSfx", "Pop sound", [["original", "Original"], ["arcade", "Arcade Synth", best >= 50], ["retro", "8-Bit Retro", state.rewardSounds?.includes("retro") ?? false]]],
+        ["popVfx", "Pop effects", [["original", "Original"], ["blue-flame", "Blue Flame", best >= 100]]],
+        ["avatarFrame", "Profile frame", [["original", "Original"], ["rookie", "Rookie Popper", state.level >= 5],
+          ["lightning", "Lightning", best >= 300], ...(state.rewardFrames ?? []).map((frame) => [frame, frame === "brainiac" ? "Brainiac" : frame])]],
+        ["playerTitle", "Player title", [["original", "Star Popper"], ["Pop Master", "Pop Master", state.level >= 15],
+          ["Frenzy Maniac", "Frenzy Maniac", best >= 200], ...(state.rewardTitles ?? []).map((title) => [title, title])]],
+      ];
+      const cosmetics = el("div", "panel-card");
+      cosmetics.append(el("h4", "panel-title", "Prestige cosmetics"));
+      for (const [key, label, items] of cosmeticGroups) {
+        cosmetics.append(deckSelect(label, items.filter((item) => item[2] !== false),
+          state.cosmetics?.[key] ?? "original", (value) => {
+            (state.cosmetics ??= {})[key] = value;
+            saveState();
+            syncHud();
+          }));
+      }
+      cosmetics.append(el("p", "panel-desc", "Sequence stars and Frenzy streaks unlock more cosmetics."));
+      grid.append(cosmetics);
+      const boxes = el("div", "panel-card");
+      const count = state.feverBoxes ?? 0;
+      boxes.append(el("h4", "panel-title", `Mystery Fever Box · ${count}`));
+      if (count) boxes.append(actionBtn("Open Box", "gold", () => {
+        state.feverBoxes -= 1;
+        const reward = [{ coins: 250 }, { gems: 5 }, { items: { blast: 1 } }][Math.floor(Math.random() * 3)];
+        awardReward(reward);
+        showToast(reward.coins ? "Found 250 Coins!" : reward.gems ? "Found 5 Gems!" : "Found a Blast card!");
+        renderActivePanel();
+      }));
+      grid.append(boxes);
+      const tickets = el("div", "panel-card");
+      tickets.append(el("h4", "panel-title", "Booster tickets"));
+      for (const [id, item] of Object.entries(popRules.boosters)) {
+        tickets.append(el("p", "panel-desc", `${item.name} · ×${state.boosterTickets?.[id] ?? 0}`));
+      }
+      if (state.xpBoostUntil > Date.now()) {
+        tickets.append(el("p", "panel-desc", `XP boost active until ${new Date(state.xpBoostUntil).toLocaleTimeString()}`));
+      }
+      if ((state.boosterTickets?.xp_hour ?? 0) > 0) {
+        tickets.append(actionBtn("Activate XP Booster", "gold", () => {
+          if (!(state.boosterTickets?.xp_hour > 0)) return;
+          state.boosterTickets.xp_hour -= 1;
+          state.xpBoostUntil = Math.max(state.xpBoostUntil ?? 0, Date.now()) + 3_600_000;
+          saveState();
+          renderActivePanel();
+        }));
+      }
+      tickets.append(actionBtn("Get Boosters", "blue", () => {
+        activeTab.shop = "boosters";
+        open("shop");
+      }));
+      grid.append(tickets);
+      for (const [id, item] of Object.entries(popRules.skillDefinitions)) {
+        const count = state.items[id] ?? 0;
+        if (!count && id !== "shield") continue;
         const card = el("div", "panel-card");
         const top = el("div", "panel-row");
-        top.append(
-          imgEl(item.icon, "panel-thumb"),
-          badgeEl(`×${state.items[item.id] ?? 0}`, "mint"),
-        );
-        card.append(
-          top,
-          el("h4", "panel-title", item.name),
-          el("p", "panel-desc", item.desc),
-          actionBtn("Buy More", "blue", () => open("shop")),
-        );
+        const artwork = item.icon ? imgEl(`pages/gameplay/dock/${item.icon}`, "panel-thumb") : badgeEl(item.symbol, "purple");
+        top.append(artwork, badgeEl(`×${count}`, "mint"));
+        card.append(top, el("h4", "panel-title", item.name));
+        if (id === "shield") {
+          const upgraded = state.skillUpgrades?.shield === 2;
+          card.append(el("p", "panel-desc", upgraded ? "Level 2 · 3.5 second protection" : "Level 1 · 3 second protection"));
+          if (!upgraded) {
+            const upgrade = actionBtn("Upgrade · 1 card", "blue", () => {
+              if (state.level < 3 || state.skillUpgrades?.shield === 2 || !state.items.shield) return;
+              state.items.shield -= 1;
+              (state.skillUpgrades ??= {}).shield = 2;
+              saveState();
+              renderActivePanel();
+            });
+            upgrade.disabled = !count || state.level < 3;
+            card.append(upgrade);
+          }
+        }
         grid.append(card);
       }
       dialogContent.append(tabBar, grid);
@@ -1705,44 +2014,36 @@ const popPanels = (() => {
         title: "+1,000 Coins",
       },
       {
-        id: "bonus-coin",
+        id: "c500",
         amount: 500,
-        gemsCost: 0,
-        tag: "BONUS",
+        gemsCost: 10,
+        tag: "POUCH",
         tone: "purple",
         title: "+500 Coins",
       },
       {
         id: "c2500",
         amount: 2500,
-        gemsCost: 50,
+        gemsCost: 45,
         tag: "",
         tone: "",
         title: "+2,500 Coins",
       },
       {
-        id: "c6000",
-        amount: 6000,
-        gemsCost: 110,
-        tag: "",
-        tone: "",
-        title: "+6,000 Coins",
-      },
-      {
-        id: "c15000",
-        amount: 15000,
-        gemsCost: 250,
+        id: "c10000",
+        amount: 10000,
+        gemsCost: 150,
         tag: "POPULAR",
         tone: "",
-        title: "+15,000 Coins",
+        title: "+10,000 Coins",
       },
       {
-        id: "c35000",
-        amount: 35000,
+        id: "c40000",
+        amount: 40000,
         gemsCost: 500,
         tag: "BEST VALUE",
         tone: "pink",
-        title: "+35,000 Coins",
+        title: "+40,000 Coins",
       },
     ];
 
@@ -1781,12 +2082,10 @@ const popPanels = (() => {
             String(pack.gemsCost),
             "gold",
             () => {
-              if (state.gems < pack.gemsCost) {
+              if (!exchangeCoins(pack.gemsCost, pack.amount)) {
                 showToast("Not enough Gems!", "warn");
                 return;
               }
-              state.gems -= pack.gemsCost;
-              awardReward({ coins: pack.amount });
               showToast(`Added +${fmt(pack.amount)} Coins!`);
               renderActivePanel();
             },
@@ -1982,22 +2281,21 @@ const popPanels = (() => {
     const lvlBadge = el(
       "span",
       "pf-level-badge",
-      `LEVEL ${state.level} \u2022 STAR POPPER`,
+      `LEVEL ${state.level} · ${(state.cosmetics?.playerTitle ?? "STAR POPPER").toUpperCase()}`,
     );
     const heroName = el("h3", "pf-hero-name", displayName);
 
     const xpWrap = el("div", "pf-xp-wrap");
     const xpMeta = el("div", "pf-xp-meta");
+    const { nextXp } = popRules.getPlayerLevel(state.xp);
     xpMeta.append(
-      el("span", "", "XP Progress"),
-      el("strong", "", `${fmt(state.xp)} / ${fmt(state.xpMax)}`),
+      el("span", "", "Total XP"),
+      el("strong", "", nextXp ? `${fmt(state.xp)} / ${fmt(nextXp)}` : `${fmt(state.xp)} · Max level`),
     );
     const xpTrack = el("div", "pf-xp-track");
     const xpFill = el("span", "pf-xp-fill");
-    const xpPct =
-      state.xpMax > 0
-        ? Math.max(0, Math.min(100, Math.round((state.xp / state.xpMax) * 100)))
-        : 0;
+    const currentXp = popRules.xpForPlayerLevel(state.level);
+    const xpPct = nextXp ? (state.xp - currentXp) * 100 / (nextXp - currentXp) : 100;
     xpFill.style.width = `${xpPct}%`;
     xpTrack.append(xpFill);
     xpWrap.append(xpMeta, xpTrack);
@@ -2074,7 +2372,7 @@ const popPanels = (() => {
       {
         tone: "gold",
         label: "Best Rank",
-        value: `#${state.stats.bestRank}`,
+        value: state.stats.bestRank ? `#${state.stats.bestRank}` : "—",
         icon: "pages/profile/icon-medal.png",
         laurel: true,
       },
@@ -2166,7 +2464,13 @@ const popPanels = (() => {
     boardCard.append(boardHead, boardBody, boardBtn);
 
     loadout.append(charCard, boardCard);
-    root.append(hero, nickCard, statsGrid, loadout);
+    const levelPath = el("div", "panel-card");
+    levelPath.append(el("h3", "panel-title", "Player levels"));
+    for (const milestone of popRules.playerLevels) {
+      levelPath.append(el("p", "panel-desc",
+        `Lv.${milestone.level} · ${fmt(milestone.xp)} XP · ${milestone.label}${state.level >= milestone.level ? " ✓" : ""}`));
+    }
+    root.append(hero, nickCard, statsGrid, loadout, levelPath);
     dialogContent.append(root);
   }
 
@@ -2264,104 +2568,61 @@ const popPanels = (() => {
 
   function renderRanking() {
     const [tabBar, tab] = renderTabs("ranking", [
-      { id: "global", label: "Global" },
-      { id: "friends", label: "Friends" },
+      { id: "records", label: "Records" }, { id: "ranked", label: "Ranked" }, { id: "frenzy", label: "Frenzy" },
     ]);
+    const card = el("div", "panel-card");
+    dialogContent.append(tabBar, card);
+    if (tab === "records") {
+      card.append(el("h3", "panel-title", "Personal mode records"));
+      for (const [mode, result] of Object.entries(state.modeRecords ?? {})) {
+        card.append(el("p", "panel-desc", `${popRules.getMode(mode).name} · ${fmt(result.score)} pts · Lv.${result.level} · ${(result.elapsed / 1000).toFixed(1)}s`));
+      }
+      if (!state.modeRecords) card.append(el("p", "panel-desc", "Finish a match to set a record."));
+      const stars = sequenceStars();
+      if (stars) card.append(el("p", "panel-desc", `Sequence · ${stars} stars`));
+      return;
+    }
+    if (tab === "ranked") {
+      card.append(el("h3", "panel-title", "Ranked Season"));
+      const live = liveEventsData?.ranked;
+      if (!live) {
+        card.append(el("p", "panel-desc", "Connect to the game server to see season standings."));
+        return;
+      }
+      card.append(el("p", "panel-desc", `${live.tier} · ${live.points} RP · Ends ${eventEndsAt(live.endsAt)}`));
+      if (!live.standings.length) card.append(el("p", "panel-desc", "No ranked results this season."));
+      live.standings.forEach((entry, index) => card.append(el("p", "panel-desc", `${index + 1}. ${entry.name} · ${entry.points} RP`)));
+      return;
+    }
 
-    const player = activePlayer();
-    const selfName = playerDisplayName();
-    const selfScore =
-      2480 +
-      state.claimedMissions.length * 40 +
-      state.claimedRewards.length * 25;
-
-    const baseGlobal = [
-      { name: "Kiko", character: "kiko", level: 13, score: 2940 },
-      { name: "Rex", character: "rex", level: 11, score: 2360 },
-      { name: "Momo", character: "momo", level: 10, score: 2190 },
-      { name: "Boba", character: "luna", level: 11, score: 2040 },
-      { name: "Pip", character: "kiko", level: 9, score: 1890 },
-    ];
-    const baseFriends = [
-      { name: "Kiko", character: "kiko", level: 13, score: 2940 },
-      { name: "Rex", character: "rex", level: 11, score: 2360 },
-      { name: "Momo", character: "momo", level: 10, score: 2190 },
-    ];
-    const entries = [
-      ...(tab === "global" ? baseGlobal : baseFriends),
-      {
-        name: selfName,
-        character: player.character,
-        level: state.level,
-        score: selfScore,
-        self: true,
-      },
-    ].sort((a, b) => b.score - a.score);
-
-    const podiumOrder = [entries[1], entries[0], entries[2]];
-    const podium = el("div", "panel-podium");
-    const podiumRanks = [2, 1, 3];
-    podiumOrder.forEach((entry, i) => {
-      if (!entry) return;
-      const slot = el(
-        "div",
-        podiumRanks[i] === 1
-          ? "panel-podium-slot panel-podium-slot--first"
-          : "panel-podium-slot",
-      );
-      if (podiumRanks[i] === 1) slot.append(el("span", "panel-podium-crown"));
-      slot.append(
-        badgeEl(`#${podiumRanks[i]}`, podiumRanks[i] === 1 ? "" : "purple"),
-        imgEl(`pages/match_results/characters/${entry.character}.png`),
-        el(
-          "strong",
-          "panel-title",
-          entry.self ? `${entry.name} (You)` : entry.name,
-        ),
-        el("span", "panel-desc", `${fmt(entry.score)} pts`),
-      );
-      podium.append(slot);
+    card.append(el("h3", "panel-title", "Frenzy Survival Leaderboard"), el("p", "panel-desc", "Loading standings…"));
+    multiplayer.frenzyRecords().then((data) => {
+      if (!card.isConnected) return;
+      card.lastElementChild.remove();
+      if (!data) {
+        card.append(el("p", "panel-desc", "Connect to the game server to see Frenzy standings."));
+        return;
+      }
+      for (const [period, label] of [["weekly", "This week · resets Monday (UTC)"], ["overall", "All time"]]) {
+        const group = el("details");
+        group.open = period === "weekly";
+        group.append(el("summary", "panel-title", label));
+        if (!data[period]?.length) group.append(el("p", "panel-desc", "No recorded online runs yet."));
+        (data[period] ?? []).forEach((rival, index) => {
+          group.append(el("p", "panel-desc", `${index + 1}. ${rival.name} · ${rival.streak} streak`));
+        });
+        card.append(group);
+      }
     });
-
-    const list = el("div", "panel-list");
-    entries.forEach((entry, index) => {
-      const rank = index + 1;
-      const row = el(
-        "div",
-        entry.self ? "panel-rank-row panel-rank-row--self" : "panel-rank-row",
-      );
-      row.dataset.rank = String(rank);
-      const info = el("div", "min-w-0");
-      info.append(
-        el(
-          "h4",
-          "panel-title",
-          entry.self ? `${entry.name} (You)` : entry.name,
-        ),
-        el("p", "panel-desc", `Lv.${entry.level}`),
-      );
-      row.append(
-        el("span", "panel-rank-num", String(rank)),
-        imgEl(`pages/gameplay/player_card/${entry.character}.png`),
-        info,
-        el("strong", "panel-title", `${fmt(entry.score)} pts`),
-      );
-      list.append(row);
-    });
-
-    const yourRank = entries.findIndex((e) => e.self) + 1;
-    const footerCard = el("div", "panel-card panel-card--highlight");
-    const footerRow = el("div", "panel-row");
-    footerRow.append(
-      el("span", "panel-title", `Your Rank: #${yourRank}`),
-      chipEl("pages/home/hud/coin.png", `${fmt(selfScore)} pts`),
-    );
-    footerCard.append(footerRow);
-
-    dialogContent.append(tabBar, podium, list, footerCard);
   }
 
   const panelMeta = {
+    deck: {
+      title: "Skill Deck",
+      subtitle: "Equip up to three skills",
+      wallet: true,
+      render: renderDeck,
+    },
     events: {
       title: "Events",
       subtitle: "Limited-Time Pop Festivals",
@@ -2426,7 +2687,7 @@ const popPanels = (() => {
     },
     ranking: {
       title: "Ranking",
-      subtitle: "Season 1 Leaderboard",
+      subtitle: "Mode records and online standings",
       icon: "pages/home/button/ranking.png",
       wallet: false,
       render: renderRanking,
@@ -2509,6 +2770,7 @@ const popPanels = (() => {
     renderActivePanel();
     dialogBody.scrollTop = 0;
     if (!dialog.open) dialog.showModal();
+    if (["events", "mail", "missions", "ranking"].includes(name)) refreshLiveEvents();
   }
 
   function close() {
@@ -2516,5 +2778,12 @@ const popPanels = (() => {
   }
 
   syncHud();
-  return { open, close, syncHud };
+  return { open, close, syncHud, refreshLiveEvents, matchBoosters, consumeMatchBooster,
+    getSkillUpgrades: () => ({ shield: state.skillUpgrades?.shield === 2 ? 2 : 1 }), getXp: () => state.xp, getPlayerLevel: () => state.level,
+    modeUnlocked: (id) => Object.hasOwn(popRules.modes, id) && state.level >= popRules.modes[id].unlockLevel,
+    getCoins: () => state.coins, getGems: () => state.gems, getNickname: playerDisplayName,
+    spendCoins, settleMatchSkillCoins, recordModeResult, exchangeCoins, awardReward,
+    getCosmetic: (key) => state.cosmetics?.[key],
+    getLobbyCosmetics: () => ({ frame: state.cosmetics?.avatarFrame, title: state.cosmetics?.playerTitle }),
+    getModeRecord: (mode) => state.modeRecords?.[mode] };
 })();

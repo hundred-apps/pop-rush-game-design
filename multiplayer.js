@@ -5,6 +5,18 @@ const multiplayer = (() => {
   let reconnect;
   let state;
   let connected = false;
+  const profileId = (() => {
+    const key = "pop-rush-online-profile";
+    try {
+      const saved = localStorage.getItem(key);
+      if (/^[a-f0-9]{32}$/.test(saved)) return saved;
+      const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      localStorage.setItem(key, id);
+      return id;
+    } catch {
+      return null;
+    }
+  })();
 
   function loadSession() {
     try {
@@ -26,7 +38,7 @@ const multiplayer = (() => {
   function available() {
     if (location.protocol === "file:") return Promise.resolve(false);
     return fetch("/api/multiplayer", { cache: "no-store" })
-      .then(async (response) => response.ok && (await response.json()).protocol === 2)
+      .then(async (response) => response.ok && (await response.json()).protocol === 3)
       .catch(() => false);
   }
 
@@ -73,7 +85,11 @@ const multiplayer = (() => {
       const message = JSON.parse(event.data);
       if (message.type === "channel") {
         link.channel = message.channel;
-        enqueue(link, { type: "join", ...request });
+        enqueue(link, { type: "join", ...request, profileId, nickname: popPanels.getNickname(),
+          character: popRules.players[selectedCharacterSeat()].character,
+          cosmetics: popPanels.getLobbyCosmetics(),
+          gameMode: document.querySelector("#online-queue-mode").value,
+          modeLevel: Number(document.querySelector("#online-queue-level").value), xp: popPanels.getXp() });
       } else if (message.type === "state") {
         connected = true;
         state = message;
@@ -125,6 +141,26 @@ const multiplayer = (() => {
 
   const api = {
     available, send, join, leave, loadSession,
+    async liveEvents() {
+      if (location.protocol === "file:") return null;
+      try {
+        const response = await fetch("/api/live-events", {
+          cache: "no-store", headers: profileId ? { "X-Pop-Profile": profileId } : {},
+        });
+        return response.ok ? await response.json() : null;
+      } catch {
+        return null;
+      }
+    },
+    async frenzyRecords() {
+      if (location.protocol === "file:") return null;
+      try {
+        const response = await fetch("/api/frenzy", { cache: "no-store" });
+        return response.ok ? await response.json() : null;
+      } catch {
+        return null;
+      }
+    },
     get state() { return state; },
     get connected() { return connected; },
   };

@@ -40,6 +40,7 @@ const privateRoomFeedback = document.querySelector("#private-room-feedback");
 let joiningPrivateRoom = false;
 let lastOnlineMatchId = null;
 let pendingGameplayStart = false;
+let initializedQueue = null;
 let pageNavigation = 0;
 const startupLoader = document.querySelector("#startup-loader");
 const decodedArtwork = new Map();
@@ -185,14 +186,18 @@ function openPanel(name) {
 function renderRoute(moveFocus = false, prepareAssets = false) {
   const previousView = showcase.dataset.view;
   const isPrivate = location.hash === "#private-room";
-  let view = location.hash === "#room" || isPrivate ? "room" : "home";
+  const isRanked = location.hash === "#ranked-room";
+  const isQueue = location.hash === "#online-room" || isRanked;
+  const isOnline = isPrivate || isQueue;
+  let view = location.hash === "#room" || isOnline ? "room" : "home";
   if (location.hash === "#gameplay") view = "gameplay";
   if (location.hash === "#character") view = "character";
   if (location.hash === "#board") view = "board";
   showcase.dataset.view = view;
-  roomScreen.dataset.private = String(isPrivate);
-  quickBadge.hidden = isPrivate;
-  privateBadge.hidden = !isPrivate;
+  roomScreen.dataset.private = String(isOnline);
+  quickBadge.hidden = isOnline;
+  privateBadge.hidden = !isOnline;
+  if (isOnline) privateBadge.textContent = isRanked ? "Ranked Match" : isQueue ? "Online Match" : "Room Code";
 
   if (view !== "gameplay") pendingGameplayStart = false;
   if (previousView === "gameplay" && previousView !== view) stopGameplayMatch();
@@ -204,10 +209,10 @@ function renderRoute(moveFocus = false, prepareAssets = false) {
   } else if (view === "room") {
     roomBoardName.textContent = equippedBoard.name;
     applyBoardTheme(roomBoardName.parentElement, equippedBoard);
-    roomTitle.textContent = isPrivate ? "Multiplayer Room" : "Quick Match";
-    gameplayBack.hash = isPrivate ? "#private-room" : "#room";
-    if (isPrivate) {
-      connectPrivateRoom();
+    roomTitle.textContent = isPrivate ? "Multiplayer Room" : isRanked ? "Ranked Match" : isQueue ? "Online Matchmaking" : "Quick Match";
+    gameplayBack.hash = isOnline ? location.hash : "#room";
+    if (isOnline) {
+      connectOnlineRoom(isRanked ? "ranked" : isQueue ? "queue" : "private");
     } else {
       multiplayer.leave();
       setRoomCodeInUrl();
@@ -220,12 +225,11 @@ function renderRoute(moveFocus = false, prepareAssets = false) {
     pendingGameplayStart = false;
     const session = multiplayer.loadSession();
     if (
-      multiplayer.state?.mode === "private" &&
-      multiplayer.state.self &&
+      multiplayer.state?.self &&
       multiplayer.connected
     ) {
       startOnlineGameplay(multiplayer.state);
-    } else if (session?.mode === "private") {
+    } else if (session) {
       resumeOnlineGameplay(session);
     } else {
       multiplayer.leave();
@@ -258,8 +262,6 @@ function setRoomCodeInUrl(code) {
 
 const roomModePicker = document.querySelector("#room-mode-picker");
 const roomModeButtons = document.querySelectorAll("[data-game-mode]");
-const roomRushDurations = document.querySelector("#room-rush-durations");
-const roomRushButtons = document.querySelectorAll("[data-rush-seconds]");
 const roomLevelStepper = document.querySelector("#room-level-stepper");
 const roomLevelPrev = document.querySelector("#room-level-prev");
 const roomLevelNext = document.querySelector("#room-level-next");
@@ -267,29 +269,25 @@ const roomLevelLabel = document.querySelector("#room-level-label");
 const roomModeHint = document.querySelector("#room-mode-hint");
 
 function isOnlineRoomActive() {
-  return location.hash === "#private-room" && multiplayer.connected && multiplayer.state?.mode === "private";
+  return ["#private-room", "#online-room", "#ranked-room"].includes(location.hash) && multiplayer.connected;
 }
 
 function renderRoomModePicker(onlineState = null) {
   const online = Boolean(onlineState) || isOnlineRoomActive();
   const stateRef = onlineState ?? (online ? multiplayer.state : null);
-  const canEdit = !online || (stateRef.phase !== "playing" && stateRef.host === stateRef.you);
+  const canEdit = !online || (stateRef.mode === "private" && stateRef.phase !== "playing" && stateRef.host === stateRef.you);
   const modeId = online ? (stateRef.gameMode ?? "classic") : getSelectedGameMode();
-  const rushSec = online ? (stateRef.rushSeconds ?? 45) : getSelectedRushSeconds();
   const meta = popRules.getMode(modeId);
   const lv = online ? (stateRef.modeLevel ?? 1) : getModeLevel(modeId);
 
   for (const btn of roomModeButtons) {
-    btn.setAttribute("aria-pressed", String(btn.dataset.gameMode === modeId));
-    btn.disabled = !canEdit;
+    const mode = popRules.getMode(btn.dataset.gameMode);
+    const locked = !popPanels.modeUnlocked(mode.id);
+    btn.setAttribute("aria-pressed", String(mode.id === modeId));
+    btn.disabled = !canEdit || locked;
+    btn.textContent = locked ? `${mode.shortName} · Lv.${mode.unlockLevel}` : mode.shortName;
   }
-  roomRushDurations.hidden = modeId !== "rush";
-  if (modeId === "rush") {
-    for (const btn of roomRushButtons) {
-      btn.setAttribute("aria-pressed", String(Number(btn.dataset.rushSeconds) === rushSec));
-      btn.disabled = !canEdit;
-    }
-  }
+  const config = popRules.getGameLevel(modeId, lv);
   const hasLevels = meta.maxLevel > 1;
   roomLevelStepper.hidden = !hasLevels;
   if (hasLevels) {
@@ -297,15 +295,10 @@ function renderRoomModePicker(onlineState = null) {
     roomLevelPrev.disabled = !canEdit || lv <= 1;
     roomLevelNext.disabled = !canEdit || lv >= meta.maxLevel;
   }
-  roomModeHint.hidden = modeId === "rush" || hasLevels;
-  if (online && !canEdit) {
-    roomModeHint.hidden = false;
-    roomModeHint.textContent = `Host selected: ${meta.name}`;
-  } else if (modeId === "classic") {
-    roomModeHint.textContent = "All 6 modes: Classic \u2192 Frenzy";
-  } else if (modeId === "frenzy") {
-    roomModeHint.textContent = "Endless survival \u00b7 3 lives";
-  }
+  roomModeHint.hidden = false;
+  roomModeHint.textContent = hasLevels
+    ? `${config.sessions} sessions · ${modeId === "rush" ? "3s each" : `${config.ratio * 100}% initial targets`}`
+    : "Endless survival · 3 lives";
 }
 
 for (const btn of roomModeButtons) {
@@ -316,18 +309,6 @@ for (const btn of roomModeButtons) {
       return;
     }
     setSelectedGameMode(gameMode);
-    renderRoomModePicker();
-  });
-}
-
-for (const btn of roomRushButtons) {
-  btn.addEventListener("click", () => {
-    const rushSeconds = Number(btn.dataset.rushSeconds);
-    if (isOnlineRoomActive()) {
-      multiplayer.send("config", { rushSeconds });
-      return;
-    }
-    setSelectedRushSeconds(rushSeconds);
     renderRoomModePicker();
   });
 }
@@ -346,7 +327,7 @@ roomLevelPrev.addEventListener("click", () => {
 roomLevelNext.addEventListener("click", () => {
   if (isOnlineRoomActive()) {
     const current = multiplayer.state?.modeLevel ?? 1;
-    multiplayer.send("config", { modeLevel: Math.min(100, current + 1) });
+    multiplayer.send("config", { modeLevel: Math.min(popRules.getMode(multiplayer.state.gameMode).maxLevel, current + 1) });
     return;
   }
   const modeId = getSelectedGameMode();
@@ -359,10 +340,8 @@ function renderQuickRoom(ready) {
   renderRoomModePicker();
   const human = selectedCharacterSeat();
   renderRoomSeats(
-    popRules.players.map((_, seat) => ({
-      seat,
-      status: seat === human ? (ready ? "Ready" : "Not ready") : "Bot",
-    })),
+    [human, ...popRules.players.map((_, seat) => seat).filter((seat) => seat !== human).slice(0, modeConfig.botCount)]
+      .map((seat) => ({ seat, status: seat === human ? (ready ? "Ready" : "Not ready") : "Bot" })),
     human,
   );
   readyButton.disabled = false;
@@ -371,17 +350,18 @@ function renderQuickRoom(ready) {
   playButton.setAttribute("aria-label", "Play match");
   inviteButton.hidden = true;
   onlineRoomStatus.hidden = false;
-  onlineRoomStatus.textContent = "1 player · 3 bots";
+  quickBadge.textContent = modeConfig.botCount ? "Vs Bots" : "Solo";
+  onlineRoomStatus.textContent = modeConfig.botCount ? `1 player · ${modeConfig.botCount} bots` : "Solo progression";
 }
 
-async function connectPrivateRoom() {
+async function connectOnlineRoom(mode) {
   roomModePicker.hidden = false;
   const route = location.hash;
-  const code = new URLSearchParams(location.search).get("room")?.toUpperCase();
+  const code = mode === "private" ? new URLSearchParams(location.search).get("room")?.toUpperCase() : "";
   onlineRoomStatus.hidden = false;
   if (
     multiplayer.connected &&
-    multiplayer.state?.mode === "private" &&
+    multiplayer.state?.mode === mode &&
     (!code || multiplayer.state.code === code)
   ) {
     multiplayer.send("board", { boardId: equippedBoard.id });
@@ -400,7 +380,7 @@ async function connectPrivateRoom() {
     onlineRoomStatus.textContent = "Multiplayer server unavailable.";
     return;
   }
-  multiplayer.join("private", code || "", equippedBoard.id);
+  multiplayer.join(mode, code || "", equippedBoard.id);
 }
 
 async function resumeOnlineGameplay(session) {
@@ -415,7 +395,7 @@ async function resumeOnlineGameplay(session) {
     gameplayOnlineStatus.textContent = "Multiplayer server unavailable.";
     return;
   }
-  multiplayer.join("private", session.code, equippedBoard.id);
+  multiplayer.join(session.mode, session.code, equippedBoard.id);
 }
 
 function renderRoomSeats(members = [], yourSeat) {
@@ -423,8 +403,12 @@ function renderRoomSeats(members = [], yourSeat) {
     const member = members.find((item) => item.seat === seat);
     card.toggleAttribute("data-self", Boolean(member && seat === yourSeat));
     image.hidden = !member;
-    name.textContent = member ? player.name : "Open seat";
-    status.textContent = member?.status ?? "Waiting";
+    const character = member?.character ?? player.character;
+    const portrait = `pages/gameplay/player_card/${character}.png`;
+    if (image.getAttribute("src") !== portrait) image.src = portrait;
+    name.textContent = member ? `${member.weeklyCrown ? "♛ " : ""}${member.name ?? player.name}` : "Open seat";
+    card.dataset.frame = member?.frame ?? "";
+    status.textContent = member?.title ? `${member.status} · ${member.title}` : member?.status ?? "Waiting";
   });
 }
 
@@ -433,7 +417,14 @@ function renderOnlineRoom(state) {
   renderRoomSeats(
     state.players.map((member) => ({
       seat: member.seat,
-      status: !member.connected
+      character: member.character,
+      name: member.name,
+      frame: member.frame,
+      title: member.title,
+      weeklyCrown: member.weeklyCrown,
+      status: member.bot
+        ? "Bot"
+        : !member.connected
         ? "Disconnected"
         : playing
           ? "In match"
@@ -445,12 +436,13 @@ function renderOnlineRoom(state) {
   );
   const joined = state.players.filter((member) => member.connected);
   const self = joined.find((member) => member.seat === state.you);
+  const isQueue = state.mode !== "private";
   const canPlay =
     playing ||
-    (joined.length >= 2 &&
+    (!isQueue && joined.length >= 2 &&
       joined.every((member) => member.ready) &&
       state.host === state.you);
-  readyButton.disabled = !self || playing;
+  readyButton.disabled = !self || playing || (isQueue && !state.prepareUntil);
   readyButton.setAttribute("aria-pressed", String(Boolean(self?.ready)));
   playButton.disabled = !canPlay;
   playButton.textContent = "Play";
@@ -458,13 +450,17 @@ function renderOnlineRoom(state) {
     "aria-label",
     playing ? "Return to match" : "Play match",
   );
-  inviteButton.hidden = playing;
+  inviteButton.hidden = playing || isQueue;
   if (!inviteButton.hidden)
     inviteButton.textContent = `Room code · ${state.code}`;
   roomModePicker.hidden = false;
   renderRoomModePicker(state);
   const message = playing
     ? "Match in progress"
+    : isQueue && state.prepareUntil
+      ? "Choose your deck and tap Ready · 15s preparation"
+      : isQueue
+        ? state.mode === "ranked" ? "Finding a player from your tier" : "Finding players · Bots fill empty seats after 12s"
     : joined.length < 2
       ? "Waiting for another player"
       : !joined.every((member) => member.ready)
@@ -472,22 +468,26 @@ function renderOnlineRoom(state) {
         : state.host === state.you
           ? "Ready to play"
           : "Waiting for host";
-  onlineRoomStatus.textContent = `${joined.length}/4 · ${message}`;
+  onlineRoomStatus.textContent = `${joined.length}/${state.mode === "ranked" ? 2 : 4} · ${message}`;
 }
 
 multiplayer.onState = (state) => {
-  if (state.mode !== "private") return;
-  if (joiningPrivateRoom) {
+  const roomRoute = state.mode === "ranked" ? "#ranked-room" : state.mode === "queue" ? "#online-room" : "#private-room";
+  if (joiningPrivateRoom && state.mode === "private") {
     setJoiningPrivateRoom(false);
     setRoomCodeInUrl(state.code);
     privateRoomDialog.close();
     navigate("#private-room");
     return;
   }
-  if (location.hash !== "#private-room" && location.hash !== "#gameplay")
+  if (location.hash !== roomRoute && location.hash !== "#gameplay")
     return;
+  if (state.mode !== "private" && state.phase === "lobby" && initializedQueue !== state.code) {
+    initializedQueue = state.code;
+    submitOnlineReady(false);
+  }
   renderOnlineRoom(state);
-  gameplayBack.hash = "#private-room";
+  gameplayBack.hash = roomRoute;
   if (state.phase === "playing" && lastOnlineMatchId !== state.matchId) {
     lastOnlineMatchId = state.matchId;
     if (location.hash !== "#gameplay") {
@@ -501,7 +501,7 @@ multiplayer.onState = (state) => {
       syncOnlineGameplay(state);
     else startOnlineGameplay(state);
   } else {
-    navigate("#private-room");
+    navigate(roomRoute);
   }
 };
 
@@ -515,7 +515,7 @@ multiplayer.onStatus = (message, connected, fatal = false) => {
     }
     return;
   }
-  if (location.hash !== "#private-room" && location.hash !== "#gameplay")
+  if (!["#private-room", "#online-room", "#ranked-room", "#gameplay"].includes(location.hash))
     return;
   onlineRoomStatus.textContent = message;
   if (connected) return;
@@ -534,22 +534,47 @@ function setJoiningPrivateRoom(pending) {
   privateRoomCode.readOnly = pending;
 }
 
+async function openOnlineDialog() {
+  const route = location.hash;
+  const onlineUnlocked = popPanels.getPlayerLevel() >= 4;
+  const rankedUnlocked = popPanels.getPlayerLevel() >= 15;
+  const modeSelect = document.querySelector("#online-queue-mode");
+  for (const option of modeSelect.options) option.disabled = !popPanels.modeUnlocked(option.value);
+  modeSelect.value = getSelectedGameMode();
+  syncOnlineLevelOptions();
+  createPrivateRoom.disabled = !onlineUnlocked;
+  joinWithCode.disabled = !onlineUnlocked;
+  document.querySelector("#find-online-match").disabled = !onlineUnlocked;
+  document.querySelector("#find-ranked-match").disabled = !rankedUnlocked;
+  document.querySelector("#find-ranked-match").textContent = rankedUnlocked ? "Ranked Match" : "Ranked Match · Lv.15";
+  const available = onlineUnlocked && await multiplayer.available();
+  if (location.hash !== route || privateRoomDialog.open) return;
+  privateRoomCode.value = "";
+  privateRoomFeedback.textContent = onlineUnlocked
+    ? available ? "" : "Multiplayer server unavailable."
+    : "Online multiplayer unlocks at Player Lv.4.";
+  if (!available) {
+    createPrivateRoom.disabled = true;
+    joinWithCode.disabled = true;
+    document.querySelector("#find-online-match").disabled = true;
+    document.querySelector("#find-ranked-match").disabled = true;
+  }
+  privateRoomDialog.showModal();
+}
+
+function syncOnlineLevelOptions() {
+  const mode = document.querySelector("#online-queue-mode").value;
+  const select = document.querySelector("#online-queue-level");
+  select.replaceChildren(...Array.from({ length: popRules.getMode(mode).maxLevel }, (_, index) =>
+    new Option(`Lv. ${index + 1}`, String(index + 1))));
+  select.value = String(getModeLevel(mode));
+  select.hidden = popRules.getMode(mode).maxLevel === 1;
+}
+
 document.querySelectorAll("[data-room]").forEach((button) => {
-  button.addEventListener("click", async () => {
-    if (button.dataset.room !== "private") {
-      navigate("#room");
-      return;
-    }
-    const route = location.hash;
-    const available = await multiplayer.available();
-    if (route !== location.hash || privateRoomDialog.open) return;
-    if (available) {
-      privateRoomCode.value = "";
-      privateRoomFeedback.textContent = "";
-      privateRoomDialog.showModal();
-    } else {
-      navigate("#private-room");
-    }
+  button.addEventListener("click", () => {
+    if (button.dataset.room === "private") openOnlineDialog();
+    else navigate("#room");
   });
 });
 
@@ -558,6 +583,20 @@ createPrivateRoom.addEventListener("click", () => {
   privateRoomDialog.close();
   navigate("#private-room");
 });
+
+document.querySelector("#find-online-match").addEventListener("click", () => {
+  setRoomCodeInUrl();
+  privateRoomDialog.close();
+  navigate("#online-room");
+});
+
+document.querySelector("#find-ranked-match").addEventListener("click", () => {
+  setRoomCodeInUrl();
+  privateRoomDialog.close();
+  navigate("#ranked-room");
+});
+
+document.querySelector("#online-queue-mode").addEventListener("change", syncOnlineLevelOptions);
 
 joinPrivateRoom.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -656,8 +695,13 @@ document.addEventListener("fullscreenchange", () => {
 readyButton.addEventListener("click", () => {
   const ready = readyButton.getAttribute("aria-pressed") === "false";
   if (location.hash === "#room") renderQuickRoom(ready);
-  else multiplayer.send("ready", { ready });
+  else submitOnlineReady(ready);
 });
+
+function submitOnlineReady(ready) {
+  multiplayer.send("ready", { ready, coins: popPanels.getCoins(), gems: popPanels.getGems(),
+    loadout: getDeckSkills(true), upgrades: popPanels.getSkillUpgrades(), ...popPanels.matchBoosters() });
+}
 
 document.querySelector("#chat-form").addEventListener("submit", (event) => {
   event.preventDefault();
@@ -785,3 +829,4 @@ async function openPage(moveFocus = false) {
 
 window.addEventListener("hashchange", () => openPage(true));
 openPage();
+popPanels.refreshLiveEvents();
