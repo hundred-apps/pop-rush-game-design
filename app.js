@@ -39,7 +39,10 @@ const joinWithCode = document.querySelector("#join-with-code");
 const privateRoomFeedback = document.querySelector("#private-room-feedback");
 let joiningPrivateRoom = false;
 let lastOnlineMatchId = null;
-let pendingInitialGameplay = false;
+let pendingGameplayStart = false;
+let pageNavigation = 0;
+const startupLoader = document.querySelector("#startup-loader");
+const decodedArtwork = new Map();
 let previewCharacterSeat = 0;
 const characterPreview = document.querySelector("#character-preview");
 const characterSelect = document.querySelector("#character-select");
@@ -179,7 +182,7 @@ function openPanel(name) {
   popPanels.open(name);
 }
 
-function renderRoute(moveFocus = false, prepareInitialPage = false) {
+function renderRoute(moveFocus = false, prepareAssets = false) {
   const previousView = showcase.dataset.view;
   const isPrivate = location.hash === "#private-room";
   let view = location.hash === "#room" || isPrivate ? "room" : "home";
@@ -191,6 +194,7 @@ function renderRoute(moveFocus = false, prepareInitialPage = false) {
   quickBadge.hidden = isPrivate;
   privateBadge.hidden = !isPrivate;
 
+  if (view !== "gameplay") pendingGameplayStart = false;
   if (previousView === "gameplay" && previousView !== view) stopGameplayMatch();
   if (view === "home" || view === "character" || view === "board") {
     multiplayer.leave();
@@ -210,11 +214,10 @@ function renderRoute(moveFocus = false, prepareInitialPage = false) {
       lastOnlineMatchId = null;
       renderQuickRoom(true);
     }
-  } else if (prepareInitialPage) {
-    pendingInitialGameplay = true;
-    applyBoardTheme(gameplayGrid.parentElement, equippedBoard);
-  } else if (previousView !== "gameplay" || pendingInitialGameplay) {
-    pendingInitialGameplay = false;
+  } else if (prepareAssets) {
+    pendingGameplayStart = true;
+  } else if (previousView !== "gameplay" || pendingGameplayStart) {
+    pendingGameplayStart = false;
     const session = multiplayer.loadSession();
     if (
       multiplayer.state?.mode === "private" &&
@@ -492,7 +495,7 @@ multiplayer.onState = (state) => {
       return;
     }
   }
-  if (location.hash !== "#gameplay") return;
+  if (location.hash !== "#gameplay" || showcase.dataset.view !== "gameplay" || pendingGameplayStart) return;
   if (state.self) {
     if (onlineGameplay?.state.matchId === state.matchId)
       syncOnlineGameplay(state);
@@ -673,9 +676,65 @@ document.querySelector("#chat-form").addEventListener("submit", (event) => {
   chatInput.focus();
 });
 
-function waitForInitialAssets() {
+function addArtworkUrls(urls, ...values) {
+  for (const value of values) {
+    for (const [, url] of value.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
+      urls.add(new URL(url, document.baseURI).href);
+    }
+  }
+}
+
+function decodeArtwork(url) {
+  const cached = decodedArtwork.get(url);
+  if (cached) return cached;
+  const image = new Image();
+  image.src = url;
+  const decoded = image.decode().catch(() => {
+    decodedArtwork.delete(url);
+  });
+  decodedArtwork.set(url, decoded);
+  return decoded;
+}
+
+function waitForPageAssets() {
   const urls = new Set();
   const images = [];
+  const preparingMatch = ["room", "gameplay"].includes(showcase.dataset.view);
+
+  if (preparingMatch) {
+    const onlineBoardId = multiplayer.state?.self?.boardId;
+    const matchBoard = onlineBoardId ? popRules.getBoard(onlineBoardId) : equippedBoard;
+    const frame = gameplayGrid.parentElement;
+    applyBoardTheme(frame, matchBoard);
+    addArtworkUrls(urls, getComputedStyle(frame, "::before").backgroundImage);
+
+    const theme = getComputedStyle(gameplayScreen);
+    for (const property of [
+      "--green-bubble", "--white-bubble", "--shallow-press-bubble",
+      "--deep-press-bubble", "--popped-bubble",
+    ]) {
+      addArtworkUrls(urls, theme.getPropertyValue(property));
+    }
+
+    if (matchBoard.id === "paw_pop") {
+      for (const state of ["idle", "white", "shallow", "deep", "popped"]) {
+        urls.add(new URL(`pages/gameplay/bubbles/paw-pad-${state}.png`, document.baseURI).href);
+      }
+    }
+
+    for (const { image, player } of roomSeats) {
+      image.loading = "eager";
+      images.push(image.decode());
+      urls.add(new URL(`pages/match_results/characters/${player.character}.png`, document.baseURI).href);
+    }
+  }
+
+  if (showcase.dataset.view === "gameplay") {
+    for (const asset of ["stage.webp", "ribbon.png", "podium.png"]) {
+      urls.add(new URL(`pages/match_results/${asset}`, document.baseURI).href);
+    }
+  }
+
   for (const element of showcase.querySelectorAll(".screen, .screen *")) {
     if (!element.getClientRects().length) continue;
     if (element instanceof HTMLImageElement) {
@@ -686,47 +745,43 @@ function waitForInitialAssets() {
     for (const pseudo of [null, "::before", "::after"]) {
       const style = getComputedStyle(element, pseudo);
       if (pseudo && (style.content === "none" || style.content === "normal")) continue;
-      for (const value of [style.backgroundImage, style.borderImageSource]) {
-        for (const [, url] of value.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
-          urls.add(new URL(url, document.baseURI).href);
-        }
-      }
+      addArtworkUrls(urls, style.backgroundImage, style.borderImageSource);
     }
   }
 
-  if (showcase.dataset.view === "gameplay") {
-    for (const player of popRules.players) {
-      urls.add(`pages/gameplay/player_card/${player.character}.png`);
-      urls.add(`pages/match_results/characters/${player.character}.png`);
-    }
-  }
-
-  for (const url of urls) {
-    const image = new Image();
-    image.src = url;
-    images.push(image.decode());
-  }
-  return Promise.allSettled(images);
+  return Promise.allSettled([...images, ...[...urls].map(decodeArtwork)]);
 }
 
-async function openInitialPage() {
-  const initialHash = location.hash;
+function setPageLoading(loading) {
+  startupLoader.hidden = !loading;
+  showcase.inert = loading;
+  if (loading) showcase.setAttribute("aria-busy", "true");
+  else showcase.removeAttribute("aria-busy");
+}
+
+async function openPage(moveFocus = false) {
+  const navigation = ++pageNavigation;
+  const route = location.hash;
+  setPageLoading(true);
+  renderRoute(false, true);
+
   let timeout;
   try {
-    renderRoute(false, true);
     await Promise.race([
-      waitForInitialAssets(),
+      waitForPageAssets(),
       new Promise((resolve) => { timeout = setTimeout(resolve, 8000); }),
     ]);
   } finally {
     clearTimeout(timeout);
-    document.querySelector("#startup-loader").hidden = true;
-    showcase.inert = false;
-    showcase.removeAttribute("aria-busy");
-    window.addEventListener("hashchange", () => renderRoute(true));
+    if (navigation === pageNavigation && location.hash === route) {
+      setPageLoading(false);
+      if (pendingGameplayStart) renderRoute(moveFocus);
+      else if (moveFocus) {
+        document.querySelector(`#${showcase.dataset.view}-title`).focus({ preventScroll: true });
+      }
+    }
   }
-
-  if (location.hash !== initialHash || pendingInitialGameplay) renderRoute();
 }
 
-openInitialPage();
+window.addEventListener("hashchange", () => openPage(true));
+openPage();
